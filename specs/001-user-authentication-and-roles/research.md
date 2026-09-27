@@ -80,11 +80,11 @@ Each entry: Decision · Rationale · Alternatives considered. All Technical Cont
 - **Rationale**: This follows constitution Section I.c without recorded exceptions. Companies is a separate business area; the raw backlog item `006-companies` extends it.
 - **Alternatives**: A single module would also hold future company settings, which makes it grow in the wrong direction. Route model binding of module models in controllers would import internals into `app/Http`.
 
-## R11. DTOs and Actions without new PHP packages
+## R11. DTOs (Spatie Laravel Data) and Actions
 
-- **Decision**: DTOs are `final readonly` classes, and Actions are plain invokable classes, as in the existing `Health` module. No `spatie/laravel-data` and no `spatie/laravel-queueable-action`.
-- **Rationale**: Follows the existing repo convention. The prohibition on unjustified dependencies weighs against adding packages that plain classes can replace. See plan Complexity Tracking.
-- **Alternatives**: Adding Spatie Data would need a justification that this feature does not have.
+- **Decision**: Input DTOs live in `App\Modules\{Identity,Companies}\Data` as `Spatie\LaravelData\Data` objects (plan §Dependencies: `spatie/laravel-data` ^4). Form Requests validate input and `toDto()` builds those Data objects with Laravel typed request helpers (`string()`, `integer()`, and the like), per constitution I.a and `.cursor/skills/spatie-data/SKILL.md`. Cross-module `PublicApi` view types stay plain readonly classes where the data model defines them. Actions remain plain invokable classes; this feature does not add `spatie/laravel-queueable-action`.
+- **Rationale**: Constitution I.a requires Spatie Laravel Data for Form Request `toDto()` values. Framework validation alone does not provide the typed Data mapping workflow Actions consume.
+- **Alternatives**: Plain `final readonly` DTOs (as in the `Health` module) would violate I.a for this feature's HTTP boundary.
 
 ## R12. Frontend routing, i18n, HTTP client
 

@@ -20,7 +20,7 @@ The plan adds email and password authentication with three fixed roles to the La
 
 **Language/Version**: PHP 8.4 (`declare(strict_types=1)`), TypeScript 5.9, Vue 3.5
 
-**Primary Dependencies**: laravel/framework ^13.17; **new**: `laravel/sanctum` ^4 (R1) and `vue-router` ^4 (R12). Existing: Pest 4, Larastan 3 (level 8), Pint, deptrac, Vite 8, Vitest 5, Tailwind 4.
+**Primary Dependencies**: laravel/framework ^13.17; **new**: `laravel/sanctum` ^4 (R1), `spatie/laravel-data` ^4 (constitution I.a), and `vue-router` ^4 (R12). Existing: Pest 4, Larastan 3 (level 8), Pint, deptrac, Vite 8, Vitest 5, Tailwind 4.
 
 **Storage**: Relational database through Eloquent, with nothing specific to one engine. `.env.example` uses SQLite, and tests use in-memory SQLite. Sessions use the `database` driver (`array` in tests). The cache and locks use the default `database` store (`array` in tests).
 
@@ -32,7 +32,7 @@ The plan adds email and password authentication with three fixed roles to the La
 
 **Performance Goals**: No throughput target in the spec. Sign-in latency is set on purpose by the timebox (R4). SC-004 (under 2 min) and SC-005 (under 3 min) are user-flow targets that the synchronous API meets, because only email delivery is queued.
 
-**Constraints**: All limits come from [constraints.md](./constraints.md). Rights take effect on the next request (FR-006). Every sign-in failure looks the same (SC-009). No PII or passwords in logs (constitution VI.a). The code must be safe to run under Octane: no request state in statics.
+**Constraints**: All limits come from [constraints.md](./constraints.md). Rights take effect on the next request (FR-006). Every sign-in failure looks the same (SC-009). Constitution VI.a requires each failed sign-in and each sign-in block to be logged as a structured authentication-failure event that omits passwords, email, tokens, and other PII; the `sign_in_security_events` table still holds FR-011 review data (including normalized email). The code must be safe to run under Octane: no request state in statics.
 
 **Scale/Scope**: Several companies, each with a small number of CRM users. 7 user stories, 40 functional requirements, 23 API routes, 1 console command, and 7 SPA pages.
 
@@ -45,13 +45,13 @@ The plan adds email and password authentication with three fixed roles to the La
 | I Layer separation | Controllers are invokable: they call one Action and return a `JsonResource`. Actions and Services are pure, with no Request, Session, or Gate. Session work (sign-in regeneration, storing `session_version`, sign-out) stays in controllers and middleware. Authorization lives in route middleware (`role:`, `awaiting-first-admin`). Actions enforce only business rules (last admin, pending state, email uniqueness) and tenant-scoped lookups (404). | Pass |
 | I.c Weak links | Identity and Companies talk only through `PublicApi` interfaces, readonly DTOs, the `Role` value enum, and the `CompanyDeactivated` event (data-model §PublicApi types). There is no cross-module Eloquent relation and no query on another module's table. `app/Http` imports only module Actions (allowed for route owners) and `PublicApi` types. The authenticated principal is `Identity\PublicApi\Actor`. Bindings, listeners, and commands are registered by module service providers, so `app/Providers` imports no module internals. | Pass, no exceptions needed |
 | I.a SOLID / reuse | There is one Action per use case. The shared capabilities are `SignInThrottleService`, `AccountEligibilityService`, `InvitationTokenService`, and `AdminSeatGuardService`. `PasswordRules` and `EmailRules` in `App\Support\Validation` are shared by Form Requests and the console command. `CompanyUserResource` and `PendingInvitationResource` are reused by the admin and super-admin routes. | Pass |
-| I.a DTOs via Spatie Data | Plain `final readonly` DTOs, as in the existing `Health` module (R11). | Deviation, see Complexity Tracking |
+| I.a DTOs via Spatie Data | Form Request `toDto()` returns Spatie Laravel Data objects in `App\Modules\{Module}\Data`, built with Laravel typed request helpers (`string()`, `integer()`, and the like) per `.cursor/skills/spatie-data/SKILL.md`. Cross-module `PublicApi` shapes stay plain readonly types where the data model defines them. | Pass |
 | II Strict typing / no magic values | Enums: `Role` and `SignInSecurityEventType`. Limits are typed class constants named after the business field, aligned with constraints.md. Larastan level 8 with no ignores. | Pass |
 | III Test-first | Every acceptance scenario is mapped to a Pest test (quickstart §Scenario map). Endpoint tests run the real Controller → Form Request → Action → Resource path. Notifications, time, and cache are faked. Every domain exception has a silence proof. | Pass |
 | IV API standards | Routes are under `/api/v1`. Every response goes through a `JsonResource`; `OkResource` is the only unwrapped one. Pagination happens in Actions. Payloads are `snake_case`. Error bodies follow contracts/http-api.md. | Pass |
-| VI Observability | `public/swagger.yaml` is created from contracts/http-api.md. Security events go to a DB table, not to logs (R5). | Pass |
+| VI Observability | `public/swagger.yaml` is created from contracts/http-api.md. Each failed sign-in and each sign-in block emits a structured authentication-failure log entry (type/reason codes only; no password, email, token, or other PII). `sign_in_security_events` remains the FR-011 security-review store (R5). | Pass |
 | Security | Sanctum SPA with CSRF; session regeneration on sign-in and invalidation on sign-out; hashed invitation and reset tokens; `throttle:api` on every route plus the specific sign-in and reset limits; emails lowercased and unique. | Pass |
-| Prohibitions | Two new dependencies, both named and justified below. No change to existing public routes (`/`, `/health`, `/up` stay). No lowered gates. No TODO or placeholder bodies. | Pass |
+| Prohibitions | Three new dependencies, all named and justified below. No change to existing public routes (`/`, `/health`, `/up` stay). No lowered gates. No TODO or placeholder bodies. | Pass |
 
 **Post-design re-check (after Phase 1)**: The same result. The data model and contracts add no cross-module relation or table access, and no route outside the spec.
 
@@ -60,9 +60,10 @@ The plan adds email and password authentication with three fixed roles to the La
 | Package | Why existing dependencies cannot do the job |
 |---------|---------------------------------------------|
 | `laravel/sanctum` ^4 (Composer) | The constitution (Security Requirements) requires Sanctum for API authentication. `statefulApi()` gives the `/api/v1` routes session cookies and CSRF, which the framework does not provide for the `api` group. Install it with `php artisan install:api`. That creates `routes/api.php`, `config/sanctum.php`, and the `personal_access_tokens` migration, which is kept on purpose (R1). |
+| `spatie/laravel-data` ^4 (Composer) | Constitution I.a requires Form Request `toDto()` values to be Spatie Laravel Data objects. `laravel/framework` validation and plain PHP classes do not provide the typed Data mapping, casting, and skill workflow mandated for DTOs between HTTP and Actions. |
 | `vue-router` ^4 (npm) | Email links need deep links (`/invitation/:token`, `/reset-password/:token`), and there are 7 pages with auth and role guards. `vue` alone has no router, and writing one by hand would duplicate this package. |
 
-No other package is added. DTOs, i18n, the HTTP client, and state use plain classes, a small `t()` helper, `fetch`, and a composable (R11, R12).
+No other package is added. i18n, the HTTP client, and state use a small `t()` helper, `fetch`, and a composable (R12).
 
 ## Module boundary exceptions
 
@@ -118,7 +119,7 @@ app/
 │   │   ├── Models/                      # User, Invitation, SignInSecurityEvent
 │   │   ├── Notifications/               # InvitationNotification, ResetPasswordNotification
 │   │   ├── Console/                     # CreateSuperAdminCommand
-│   │   ├── Data/                        # internal DTOs (SignInAttempt, InviteUserData, …)
+│   │   ├── Data/                        # Spatie Laravel Data DTOs (SignInAttempt, InviteUserData, …)
 │   │   └── PublicApi/                   # Role, Actor, SessionValidity, FirstAdminInvitations,
 │   │                                    # CompanyUserView, PendingInvitationView, InvitationPreview
 │   └── Companies/
@@ -126,7 +127,7 @@ app/
 │       ├── Actions/                     # CreateCompany, ListCompanies, DeactivateCompany, ReactivateCompany
 │       ├── Services/                    # CompanyDirectoryService (implements PublicApi)
 │       ├── Models/                      # Company
-│       ├── Data/                        # CreateCompanyData
+│       ├── Data/                        # Spatie Laravel Data (CreateCompanyData)
 │       └── PublicApi/                   # CompanyDirectory, CompanySummary, CompanyDeactivated
 ├── Support/Validation/                  # PasswordRules, EmailRules
 └── Providers/AppServiceProvider.php     # `api` rate limiter only
@@ -178,9 +179,3 @@ tests/
 - The console command asks for the password twice with a hidden prompt and never accepts it as an argument.
 - Security events are kept with no retention limit, and there is no UI to view them (a viewer UI is out of scope).
 - A viewer's home page is a placeholder until the events, timesheets, and reports features exist.
-
-## Complexity Tracking
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| DTOs are plain `final readonly` classes, not Spatie Laravel Data (constitution I.a) | The repo does not include `spatie/laravel-data`, and the existing `Health` module already uses plain readonly DTOs. | Adding the package would be a new dependency that this feature does not need: Form Request `toDto()` with typed getters builds these DTOs directly. |
