@@ -13,7 +13,4 @@
 | C | Full access to all of the company's data, like a company admin of every company | Simplest support model; the service owner can see every company's personal and biometric data. |
 | Custom | Describe the exact permissions | — |
 
-**Answer**: _pending_
-
-
 **Answer**: A

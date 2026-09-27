@@ -8,6 +8,12 @@
 
 **Input**: User description: "User authentication and roles for a CRM service for access control and time tracking. The service serves multiple companies. It stores employees with face photos, receives entry/exit events from face recognition terminals, and calculates hours worked. This is personal and biometric data, so only authenticated users may access it, and only within the limits of their role. Users sign in with email and password. There are three roles: Super admin (service owner; manages all companies and creates the first administrator for each company; the first super admin is created by a console command during installation; super admins cannot be created through the UI), Company admin (manages their own company, including employees, photos, terminals, settings, and the company's users), Viewer (read-only access to their own company's events, timesheets, and reports). Every user except the super admin belongs to exactly one company. New users are added by email invitation and set their own password. The service needs password recovery, user deactivation (users are never deleted), and protection against password guessing. A company must always have at least one active admin. Users of a deactivated company cannot sign in. Employees who pass through the terminal are not CRM users. Out of scope for now: two-factor authentication, Google/SSO sign-in, self-registration, custom roles."
 
+## Clarifications
+
+### Session 2026-09-27
+
+- Q: Beyond creating companies, listing them, deactivating/reactivating them, and inviting the first company admin, what may a super admin do inside a company? → A: Nothing more (option A). The super admin has no access to a company's users (beyond the first-admin invitation), employees, photos, terminals, settings, events, timesheets, or reports. Once the first admin has accepted, the super admin cannot invite a replacement; a company whose admins lose their credentials relies on password recovery.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Sign in and sign out with email and password (Priority: P1)
@@ -46,6 +52,8 @@ Once signed in, each user can do only what their role allows. A company admin ma
 4. **Given** a signed-in company admin, **When** they manage employees, photos, terminals, settings, or users of their own company, **Then** the action is allowed.
 5. **Given** a signed-in company admin or viewer of company A, **When** they request any data or action belonging to company B, **Then** the request is refused and nothing about company B is revealed, including whether the requested record exists.
 6. **Given** a signed-in company admin or viewer, **When** they attempt any company-level administration reserved for super admins (creating companies, deactivating companies, viewing the list of all companies), **Then** the action is refused.
+7. **Given** a signed-in super admin, **When** they request any company's users, employees, photos, terminals, settings, events, timesheets, or reports, **Then** the request is refused.
+8. **Given** a signed-in super admin and a company whose first admin has already accepted the invitation, **When** they try to invite, re-send or revoke an invitation, deactivate or reactivate a user, or change a user's role in that company, **Then** the action is refused.
 
 ---
 
@@ -143,7 +151,8 @@ During installation, an operator runs a console command that creates the first s
 
 ### Edge Cases
 
-- A company has been created but its first admin has not yet accepted the invitation: the company has zero active admins. The "at least one active admin" rule applies only to actions that would remove the last active admin; the super admin can re-send or revoke the first-admin invitation and invite a replacement.
+- A company has been created but its first admin has not yet accepted the invitation: the company has zero active admins. The "at least one active admin" rule applies only to actions that would remove the last active admin; until a first-admin invitation is accepted, the super admin can re-send or revoke the first-admin invitation and invite a replacement first admin; after that, the super admin has no further say over the company's users.
+- All admins of a company lose their credentials after the first admin has accepted: the super admin cannot invite a replacement or act inside the company; access is regained only through password recovery.
 - The same person needs access to two companies: not supported by one account, because every non-super-admin user belongs to exactly one company and email is unique across the service; they need a separate email address per company.
 - Two company admins try to deactivate or demote each other at the same moment while they are the only two active admins: at most one of the actions succeeds, so the company still has at least one active admin.
 - A user is deactivated, their company is deactivated, or their role is lowered while they are signed in: the change takes effect on their next request, not at their next sign-in.
@@ -188,7 +197,7 @@ During installation, an operator runs a console command that creates the first s
 - **FR-017**: A viewer MUST be able to read events, timesheets, and reports of their own company, and MUST NOT be able to change anything or open employee, photo, terminal, settings, or user management.
 - **FR-018**: System MUST refuse any access by a company admin or viewer to another company's data without revealing whether the requested record exists.
 - **FR-019**: A super admin MUST be able to create companies, view all companies, deactivate and reactivate companies, and invite the first company admin of a company.
-- **FR-020**: The scope of a super admin's access to a company's users and to its employee, photo, terminal, event, timesheet, and report data is [NEEDS CLARIFICATION: Beyond creating companies and inviting the first admin, what may a super admin do inside a company? (A) nothing more; (B) also manage that company's users (invite, re-send/revoke invitations, deactivate/reactivate, change role) but no access to employees, photos, events, timesheets, or reports; (C) full access to all of that company's data, like a company admin of every company.]
+- **FR-020**: Beyond FR-019, a super admin MUST NOT be able to read or change a company's users, employees, employee photos, terminals, settings, events, timesheets, or reports. The only exception is the first-admin invitation: until a first-admin invitation of that company is accepted, the super admin MAY re-send or revoke it and invite a replacement first admin; after acceptance, the super admin MUST NOT invite, re-send, revoke, deactivate, reactivate, or change the role of any user of that company.
 
 **Invitations**
 
@@ -198,7 +207,7 @@ During installation, an operator runs a console command that creates the first s
 - **FR-024**: An invitation link MUST be single-use and expire after the period defined in `constraints.md`.
 - **FR-025**: Accepting a valid invitation MUST let the invitee set their own password and activate their account in the inviting company with the invited role.
 - **FR-026**: System MUST refuse to invite an email that already belongs to an existing user, active or deactivated.
-- **FR-027**: A pending invitation MUST be re-sendable and revocable by a company admin of the inviting company; re-sending MUST invalidate the previous link.
+- **FR-027**: A pending invitation MUST be re-sendable and revocable by a company admin of the inviting company, and a pending first-admin invitation also by a super admin as defined in FR-020; re-sending MUST invalidate the previous link.
 - **FR-028**: System MUST show pending invitations, with their role and expiry, in the company's user list.
 - **FR-029**: No UI or API path MUST allow creating a super admin or assigning the super admin role.
 
@@ -239,6 +248,7 @@ During installation, an operator runs a console command that creates the first s
 - **SC-001**: 100% of requests from people who are not signed in are refused for every function except sign-in, invitation acceptance, and password recovery.
 - **SC-002**: 100% of attempts by a company admin or viewer to read or change another company's data are refused, verified across every protected function.
 - **SC-003**: 100% of change attempts by viewers are refused.
+- **SC-010**: 100% of super admin requests for a company's users, employees, photos, terminals, settings, events, timesheets, or reports are refused, except the first-admin invitation actions allowed by FR-020.
 - **SC-004**: An invited user can go from opening the invitation email to being signed in in under 2 minutes.
 - **SC-005**: A user who forgot their password can regain access in under 3 minutes from requesting the reset.
 - **SC-006**: A deactivated user, or a user of a deactivated company, loses access on their very next request after the deactivation.
