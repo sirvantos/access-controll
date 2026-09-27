@@ -97,6 +97,14 @@ final class AgentReply
     /**
      * @return list<array<string, mixed>>
      */
+    public function blockingIssues(): array
+    {
+        return $this->keptIssues();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     private function keptIssues(): array
     {
         $issues = $this->payload['issues'] ?? [];

@@ -15,7 +15,7 @@ You implement exactly one task. The orchestrator names the task id. You do not p
 
 Write the code and the tests that the task requires. Follow the constitution. Stay inside the task.
 
-Do not run `make verify`. The orchestrator runs it and returns the log if it fails.
+Do not run `make verify`. The orchestrator runs it. When it fails, the next attempt receives the log. When a reviewer rejects the task, the next attempt receives that review. When `assumptions` blocked approval, the next attempt receives those assumptions.
 
 Do not commit. Do not push.
 

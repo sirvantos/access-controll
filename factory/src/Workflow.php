@@ -391,7 +391,7 @@ final class Workflow
             $reply = $this->invoke(
                 $worktree,
                 'implementer',
-                $this->implementPrompt($task, $attempts),
+                $this->implementPrompt($task),
                 $chatId,
                 $task->id,
                 $attempts,
@@ -431,14 +431,28 @@ final class Workflow
             }
 
             $this->git->commit($worktree, $task->id.' attempt '.$attempts);
+            $verified = $this->verify($worktree, $task->id, $attempts);
+            if (! $verified) {
+                $this->rememberFeedback($task->id, [
+                    'kind' => 'verify',
+                    'log' => $this->verifyLog($task->id, $attempts),
+                ]);
+            } elseif ($reply->blocksApproval()) {
+                $this->rememberFeedback($task->id, [
+                    'kind' => 'assumptions',
+                    'assumptions' => $reply->payload['assumptions'] ?? [],
+                ]);
+            }
 
-            if (! $this->verify($worktree, $task->id, $attempts) || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $task, $attempts)) {
+            if (! $verified || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $task, $attempts)) {
                 $this->note('task '.$task->id.' attempt '.$attempts.' rejected');
                 $this->rememberChat($task->id, $attempts, $chatId);
                 $this->git->removeWorktree($worktree, '');
 
                 continue;
             }
+
+            $this->clearFeedback($task->id);
 
             $tasksPath = $worktree.'/'.$featureDir.'/tasks.md';
             file_put_contents($tasksPath, TaskBoard::markDone((string) file_get_contents($tasksPath), $task->id));
@@ -473,6 +487,7 @@ final class Workflow
 
             if ($this->git->changedFiles($worktree) !== $before) {
                 $this->note('review '.$prompt.' edited files');
+                $this->rememberFeedback($task->id, $this->reviewFeedback($prompt, $reply, true));
                 $this->git->discard($worktree);
 
                 return false;
@@ -480,6 +495,8 @@ final class Workflow
 
             $this->note('review '.$prompt.' '.$reply->status);
             if (! $reply->reviewAccepted()) {
+                $this->rememberFeedback($task->id, $this->reviewFeedback($prompt, $reply, false));
+
                 return false;
             }
         }
@@ -534,26 +551,94 @@ final class Workflow
         $this->save($state);
     }
 
-    private function implementPrompt(TaskItem $task, int $attempt): string
+    private function implementPrompt(TaskItem $task): string
     {
         $prompt = $this->read($this->root.'/factory/prompts/implementer.md')
             ."\n\n".$this->taskContext($task)
             ."\n\nDo not run make verify. Do not commit.";
-        $log = $this->previousVerifyLog($task->id, $attempt);
-        if ($log === '') {
+        $feedback = $this->readFeedback($task->id);
+        if ($feedback === null) {
             return $prompt;
         }
 
-        return $prompt."\n\nThe previous attempt failed make verify. Fix that failure in this task. The log follows.\n\n".$log;
+        return $prompt."\n\n".$this->feedbackText($feedback);
     }
 
-    private function previousVerifyLog(string $taskId, int $attempt): string
+    /**
+     * @param  array<string, mixed>  $feedback
+     */
+    private function feedbackText(array $feedback): string
     {
-        if ($attempt < 2) {
-            return '';
+        $kind = $feedback['kind'] ?? '';
+        if ($kind === 'verify') {
+            $log = is_string($feedback['log'] ?? null) ? $feedback['log'] : '';
+
+            return "The previous attempt failed make verify. Fix that failure in this task. The log follows.\n\n".$log;
         }
 
-        $path = $this->root.'/factory/runs/'.$taskId.'-verify/attempt-'.($attempt - 1).'/agent.log';
+        if ($kind === 'assumptions') {
+            return "The previous attempt was not approved because assumptions is not empty. Remove those assumptions, or stop with spec_gap when the spec must state the choice.\n\n".$this->encodeJson($feedback['assumptions'] ?? []);
+        }
+
+        $reviewer = is_string($feedback['reviewer'] ?? null) ? $feedback['reviewer'] : 'reviewer';
+        $label = str_replace('_', ' ', $reviewer);
+        $lead = ($feedback['edited_files'] ?? false) === true
+            ? "The {$label} edited files, so that verdict was discarded. Fix the findings below."
+            : "The {$label} rejected the previous attempt. make verify had passed. Fix the findings below.";
+        $sections = [$lead];
+        foreach (['Issues' => 'issues', 'Assumptions' => 'assumptions', 'Scenarios' => 'scenarios'] as $title => $key) {
+            $value = $feedback[$key] ?? [];
+            if (! is_array($value) || $value === []) {
+                continue;
+            }
+
+            $sections[] = $title.":\n".$this->encodeJson($value);
+        }
+
+        return implode("\n\n", $sections);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reviewFeedback(string $reviewer, AgentReply $reply, bool $editedFiles): array
+    {
+        return [
+            'kind' => 'review',
+            'reviewer' => $reviewer,
+            'edited_files' => $editedFiles,
+            'issues' => $reply->blockingIssues(),
+            'assumptions' => is_array($reply->payload['assumptions'] ?? null) ? $reply->payload['assumptions'] : [],
+            'scenarios' => $this->failingScenarios($reply),
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function failingScenarios(AgentReply $reply): array
+    {
+        $scenarios = $reply->payload['scenarios'] ?? [];
+        if (! is_array($scenarios)) {
+            return [];
+        }
+
+        $failing = [];
+        foreach ($scenarios as $scenario) {
+            if (! is_array($scenario) || ($scenario['result'] ?? null) === 'pass') {
+                continue;
+            }
+
+            /** @var array<string, mixed> $scenario */
+            $failing[] = $scenario;
+        }
+
+        return $failing;
+    }
+
+    private function verifyLog(string $taskId, int $attempt): string
+    {
+        $path = $this->root.'/factory/runs/'.$taskId.'-verify/attempt-'.$attempt.'/agent.log';
         if (! is_file($path)) {
             return '';
         }
@@ -565,6 +650,53 @@ final class Workflow
         }
 
         return substr($body, -$limit);
+    }
+
+    /**
+     * @param  array<string, mixed>  $feedback
+     */
+    private function rememberFeedback(string $taskId, array $feedback): void
+    {
+        $directory = $this->root.'/factory/runs/'.$taskId;
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($directory.'/feedback.json', $this->encodeJson($feedback)."\n");
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readFeedback(string $taskId): ?array
+    {
+        $path = $this->root.'/factory/runs/'.$taskId.'/feedback.json';
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $decoded = json_decode($this->read($path), true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
+    }
+
+    private function clearFeedback(string $taskId): void
+    {
+        $path = $this->root.'/factory/runs/'.$taskId.'/feedback.json';
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    private function encodeJson(mixed $value): string
+    {
+        $encoded = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        return is_string($encoded) ? $encoded : '[]';
     }
 
     private function taskContext(TaskItem $task): string

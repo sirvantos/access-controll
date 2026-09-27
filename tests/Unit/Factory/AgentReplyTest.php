@@ -45,5 +45,6 @@ it('treats critical through medium findings as actionable and skips low', functi
     expect($critical->actionableIssues())->toHaveCount(1)
         ->and($middle->actionableIssues())->toHaveCount(1)
         ->and($low->actionableIssues())->toBe([])
+        ->and($low->blockingIssues())->toHaveCount(1)
         ->and($unstated->actionableIssues())->toHaveCount(1);
 });
