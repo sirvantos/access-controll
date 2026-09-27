@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Access\Factory;
 
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -37,9 +40,6 @@ final class Workflow
         }
 
         $this->git->ensureBranch($created['branch']);
-        $this->git->commit($this->root, 'start '.$created['branch'], [
-            $created['dir'],
-        ]);
 
         $this->save(new FactoryState(
             $created['dir'],
@@ -125,7 +125,7 @@ final class Workflow
     {
         $problems = [];
 
-        foreach (['spec_author', 'implementer', 'reviewer'] as $role) {
+        foreach (['spec_author', 'spec_editor', 'implementer', 'reviewer'] as $role) {
             try {
                 $this->contract->model($role);
             } catch (RuntimeException $exception) {
@@ -202,8 +202,11 @@ final class Workflow
     private function authorStep(string $step): void
     {
         $state = $this->load();
+        $model = $this->authorModel($step);
         $worktree = $this->prepareWorktree($step, 'spec_author');
-        $reply = $this->invoke($worktree, 'spec_author', $this->stepPrompt($step, $state), null, $step, 1);
+        $this->overlayFeature($worktree, $state->featureDir);
+        $reply = $this->invoke($worktree, 'spec_author', $this->stepPrompt($step, $state), $this->authorChat($model), $step, 1, $model);
+        $this->rememberAuthor($reply->chatId, $model);
         $this->sealWorktree($worktree, $state->featureDir);
 
         try {
@@ -215,7 +218,9 @@ final class Workflow
 
         if ($reply->status === 'spec_gap') {
             $this->ensureQuestions($worktree, $state, $reply);
-            $this->publishWorktree($worktree, $step, 'record clarify questions');
+            $this->keepDraft($worktree, 'factory/'.$step, 'record clarify questions');
+            $this->mirrorFeature($worktree, $state->featureDir);
+            $this->git->removeWorktree($worktree, 'factory/'.$step);
             $this->stop('unresolved_questions', 'Answer '.$state->featureDir.'/.factory/questions.md and run resume.');
         }
 
@@ -224,15 +229,54 @@ final class Workflow
             $this->stop('agent_failed', $step.' did not finish with status done.');
         }
 
-        $this->publishWorktree($worktree, $step, $step.' '.$state->featureDir);
+        $this->keepDraft($worktree, 'factory/'.$step, $step.' '.$state->featureDir);
+        $this->mirrorFeature($worktree, $state->featureDir);
+        $this->git->removeWorktree($worktree, 'factory/'.$step);
         $this->advance($step);
     }
 
     private function analyze(): void
     {
         $state = $this->load();
+        $repairs = 0;
+        $max = $this->contract->maxAttempts();
+        $round = 0;
+
+        while (true) {
+            $round++;
+            $reply = $this->runAnalyze($state, $round);
+            if ($this->analyzeClear($reply)) {
+                $this->publishDraft('spec '.$state->featureDir, $state->featureDir);
+                $this->advance('analyze');
+
+                return;
+            }
+
+            $issues = $reply->actionableIssues();
+            if ($issues === [] || $repairs >= $max) {
+                $this->stop('analyze_failure', 'Analyze requested changes. Implementation did not start.');
+            }
+
+            $repairs++;
+            $this->note('repair analyze findings with spec_editor');
+            $this->repairAnalyze($state, $issues, $repairs);
+        }
+    }
+
+    private function runAnalyze(FactoryState $state, int $attempt): AgentReply
+    {
         $worktree = $this->prepareWorktree('analyze', 'reviewer');
-        $reply = $this->invoke($worktree, 'reviewer', $this->stepPrompt('analyze', $state), null, 'analyze', 1);
+        $this->overlayFeature($worktree, $state->featureDir);
+        $reviewEdits = array_values(array_filter(
+            $this->git->changedFiles($worktree),
+            fn (string $path): bool => str_starts_with($path, $state->featureDir.'/'),
+        ));
+        if ($reviewEdits !== []) {
+            $this->git->commit($worktree, 'apply review edits', [$state->featureDir]);
+            $this->git->pointBranch('factory/draft', 'factory/analyze');
+        }
+
+        $reply = $this->invoke($worktree, 'reviewer', $this->stepPrompt('analyze', $state), null, 'analyze', $attempt);
         $this->sealWorktree($worktree, $state->featureDir);
 
         if ($this->git->changedFiles($worktree) !== []) {
@@ -243,11 +287,76 @@ final class Workflow
 
         $this->git->removeWorktree($worktree, 'factory/analyze');
 
-        if (! $reply->reviewAccepted()) {
-            $this->stop('analyze_failure', 'Analyze requested changes. Implementation did not start.');
+        return $reply;
+    }
+
+    private function analyzeClear(AgentReply $reply): bool
+    {
+        if ($reply->blocksApproval() || ! in_array($reply->status, ['approve', 'changes_requested'], true)) {
+            return false;
         }
 
-        $this->advance('analyze');
+        return $reply->actionableIssues() === [];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $issues
+     */
+    private function repairAnalyze(FactoryState $state, array $issues, int $attempt): void
+    {
+        $model = $this->contract->model('spec_editor');
+        $worktree = $this->prepareWorktree('analyze-fix', 'spec_author');
+        $this->overlayFeature($worktree, $state->featureDir);
+        $reply = $this->invoke(
+            $worktree,
+            'spec_author',
+            $this->repairPrompt($state, $issues),
+            $this->authorChat($model),
+            'analyze-fix',
+            $attempt,
+            $model,
+        );
+        $this->rememberAuthor($reply->chatId, $model);
+        $this->sealWorktree($worktree, $state->featureDir);
+
+        try {
+            $this->assertCleanRole('spec_author', $state->featureDir, $worktree);
+        } catch (FactoryStop $stop) {
+            $this->git->discard($worktree);
+            $this->stop($stop->reason, $stop->getMessage());
+        }
+
+        if ($reply->status !== 'done' && $reply->status !== 'spec_gap') {
+            $this->note('analyze repair status '.$reply->status);
+            $this->git->discard($worktree);
+            $this->git->removeWorktree($worktree, 'factory/analyze-fix');
+
+            return;
+        }
+
+        $this->keepDraft($worktree, 'factory/analyze-fix', 'repair analyze findings');
+        $this->mirrorFeature($worktree, $state->featureDir);
+        $this->git->removeWorktree($worktree, 'factory/analyze-fix');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $issues
+     */
+    private function repairPrompt(FactoryState $state, array $issues): string
+    {
+        $encoded = json_encode($issues, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $findings = is_string($encoded) ? $encoded : '[]';
+
+        return <<<PROMPT
+        ANALYZE_FIX
+        Apply these analyze findings to {$state->featureDir}. Edit the spec, plan, or tasks so each finding is resolved.
+        Do not stop for a human. Do not return spec_gap. Apply the fix stated in the finding.
+        Do not run git. Do not run Speckit git hooks. Do not invent requirements that the findings do not state.
+        Findings:
+        {$findings}
+        The entire final message is one JSON object and nothing else:
+        {"status":"done","summary":"","files_changed":[],"assumptions":[]}
+        PROMPT;
     }
 
     private function implement(): void
@@ -278,10 +387,11 @@ final class Workflow
 
             $this->note('task '.$task->id.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
             $worktree = $this->prepareWorktree($task->id, 'implementer');
+            $this->overlayFeature($worktree, $state->featureDir);
             $reply = $this->invoke(
                 $worktree,
                 'implementer',
-                $this->implementPrompt($task),
+                $this->implementPrompt($task, $attempts),
                 $chatId,
                 $task->id,
                 $attempts,
@@ -305,7 +415,9 @@ final class Workflow
             if ($reply->status === 'spec_gap') {
                 $this->note('spec gap '.$task->id);
                 $this->ensureQuestions($worktree, $this->load(), $reply);
-                $this->publishWorktree($worktree, $task->id, 'record spec gap for '.$task->id);
+                $this->keepDraft($worktree, 'factory/'.$task->id, 'record spec gap for '.$task->id);
+                $this->mirrorFeature($worktree, $featureDir);
+                $this->git->removeWorktree($worktree, 'factory/'.$task->id);
                 $this->stop('unresolved_questions', 'The implementer reported a spec gap for '.$task->id.'.');
             }
 
@@ -328,16 +440,16 @@ final class Workflow
                 continue;
             }
 
-            $this->git->removeWorktree($worktree, '');
-            $this->git->squashMerge('factory/'.$task->id);
-            $tasksPath = $this->root.'/'.$featureDir.'/tasks.md';
+            $tasksPath = $worktree.'/'.$featureDir.'/tasks.md';
             file_put_contents($tasksPath, TaskBoard::markDone((string) file_get_contents($tasksPath), $task->id));
+            $this->git->commit($worktree, $task->id.' '.$task->description);
+            $this->git->pointBranch('factory/draft', 'factory/'.$task->id);
+            $this->mirrorFeature($worktree, $featureDir);
+            $this->git->removeWorktree($worktree, 'factory/'.$task->id);
             $state = $this->load();
             $state->putTask($task->id, $attempts, 'done', $chatId, $this->hash($featureDir, $task));
             $this->save($state);
-            $this->git->commit($this->root, $task->id.' '.$task->description);
-            $this->note('merged '.$task->id);
-            $this->git->removeWorktree('', 'factory/'.$task->id);
+            $this->note('drafted '.$task->id);
 
             return;
         }
@@ -384,6 +496,7 @@ final class Workflow
 
         $before = array_map(static fn (TaskItem $task): string => $task->id, $this->board());
         $worktree = $this->prepareWorktree('converge', 'converge');
+        $this->overlayFeature($worktree, $state->featureDir);
         $reply = $this->invoke($worktree, 'reviewer', $this->stepPrompt('converge', $state), null, 'converge', $state->convergeRounds + 1);
         $this->sealWorktree($worktree, $state->featureDir);
 
@@ -399,7 +512,9 @@ final class Workflow
             $this->stop('agent_failed', 'Converge did not finish.');
         }
 
-        $this->publishWorktree($worktree, 'converge', 'converge '.$state->featureDir);
+        $this->keepDraft($worktree, 'factory/converge', 'converge '.$state->featureDir);
+        $this->mirrorFeature($worktree, $state->featureDir);
+        $this->git->removeWorktree($worktree, 'factory/converge');
         $after = array_map(static fn (TaskItem $task): string => $task->id, $this->board());
         $state = $this->load();
         $state->convergeRounds++;
@@ -413,16 +528,43 @@ final class Workflow
             return;
         }
 
+        $this->publishDraft('implement '.$state->featureDir, $state->featureDir);
         $state->next = 'done';
         $state->stop = null;
         $this->save($state);
     }
 
-    private function implementPrompt(TaskItem $task): string
+    private function implementPrompt(TaskItem $task, int $attempt): string
     {
-        return $this->read($this->root.'/factory/prompts/implementer.md')
+        $prompt = $this->read($this->root.'/factory/prompts/implementer.md')
             ."\n\n".$this->taskContext($task)
             ."\n\nDo not run make verify. Do not commit.";
+        $log = $this->previousVerifyLog($task->id, $attempt);
+        if ($log === '') {
+            return $prompt;
+        }
+
+        return $prompt."\n\nThe previous attempt failed make verify. Fix that failure in this task. The log follows.\n\n".$log;
+    }
+
+    private function previousVerifyLog(string $taskId, int $attempt): string
+    {
+        if ($attempt < 2) {
+            return '';
+        }
+
+        $path = $this->root.'/factory/runs/'.$taskId.'-verify/attempt-'.($attempt - 1).'/agent.log';
+        if (! is_file($path)) {
+            return '';
+        }
+
+        $body = (string) file_get_contents($path);
+        $limit = 12000;
+        if (strlen($body) <= $limit) {
+            return $body;
+        }
+
+        return substr($body, -$limit);
     }
 
     private function taskContext(TaskItem $task): string
@@ -474,6 +616,9 @@ final class Workflow
         $closing = $step === 'analyze'
             ? '{"verdict":"approve","issues":[],"assumptions":[]}'
             : '{"status":"done","summary":"","files_changed":[],"assumptions":[]}';
+        $severity = $step === 'analyze'
+            ? "\nA finding has file, line, severity, rule, problem, and fix. Severity is critical, high, medium, or low. A constitution conflict is critical. Approve only with an empty issues array."
+            : '';
 
         return <<<PROMPT
         Follow .cursor/skills/{$skill}/SKILL.md for {$state->featureDir}.
@@ -482,13 +627,42 @@ final class Workflow
         If you need a human answer, append the question to {$questions} and finish with status spec_gap.
         Do not invent missing requirements.
         The entire final message is one JSON object and nothing else:
-        {$closing}
+        {$closing}{$severity}
         PROMPT;
     }
 
-    private function invoke(string $cwd, string $role, string $prompt, ?string $chatId, string $name, int $attempt): AgentReply
+    private function authorModel(string $step): string
     {
-        $model = match ($role) {
+        $role = in_array($step, ['specify', 'clarify'], true) ? 'spec_author' : 'spec_editor';
+
+        return $this->contract->model($role);
+    }
+
+    private function authorChat(string $model): ?string
+    {
+        $state = $this->load();
+        if ($state->authorModel !== $model || $state->authorChatId === null || $state->authorChatId === '') {
+            return null;
+        }
+
+        return $state->authorChatId;
+    }
+
+    private function rememberAuthor(?string $chatId, string $model): void
+    {
+        if ($chatId === null || $chatId === '') {
+            return;
+        }
+
+        $state = $this->load();
+        $state->authorChatId = $chatId;
+        $state->authorModel = $model;
+        $this->save($state);
+    }
+
+    private function invoke(string $cwd, string $role, string $prompt, ?string $chatId, string $name, int $attempt, ?string $model = null): AgentReply
+    {
+        $model ??= match ($role) {
             'implementer' => $this->contract->model('implementer'),
             'spec_author' => $this->contract->model('spec_author'),
             default => $this->contract->model('reviewer'),
@@ -520,20 +694,15 @@ final class Workflow
 
     private function prepareWorktree(string $name, string $role): string
     {
-        $state = $this->load();
-        $relative = $state->featureDir.'/.factory/state.json';
-        if (is_file($this->root.'/'.$relative)) {
-            $this->git->commit($this->root, 'factory state', [$relative]);
-        }
-
         $safe = str_replace('/', '-', $name);
         $path = $this->root.'/.worktrees/'.$safe;
         if (! is_dir($this->root.'/.worktrees')) {
             mkdir($this->root.'/.worktrees', 0777, true);
         }
 
-        $this->note('worktree '.$path.' on factory/'.$safe.' role '.$role);
-        $this->git->worktreeAdd($path, 'factory/'.$safe, 'HEAD');
+        $start = $this->git->hasBranch('factory/draft') ? 'factory/draft' : 'HEAD';
+        $this->note('worktree '.$path.' on factory/'.$safe.' from '.$start.' role '.$role);
+        $this->git->worktreeAdd($path, 'factory/'.$safe, $start);
         $this->git->linkDependencies($path);
         $this->copyFeaturePointer($path);
         $roleName = $role === 'converge' ? 'converge' : $role;
@@ -574,15 +743,69 @@ final class Workflow
         }
     }
 
-    private function publishWorktree(string $worktree, string $branchSuffix, string $message): void
+    private function keepDraft(string $worktree, string $branch, string $message): void
     {
-        $branch = 'factory/'.str_replace('/', '-', $branchSuffix);
         $this->git->commit($worktree, $message);
-        $this->git->removeWorktree($worktree, '');
-        $this->note('squash '.$branch);
-        $this->git->squashMerge($branch);
-        $this->git->commit($this->root, $message);
-        $this->git->removeWorktree('', $branch);
+        $this->git->pointBranch('factory/draft', $branch);
+        $this->note('draft '.$branch);
+    }
+
+    private function publishDraft(string $message, string $featureDir): void
+    {
+        if (! $this->git->hasBranch('factory/draft')) {
+            return;
+        }
+
+        $this->note('publish '.$message);
+        $this->git->clearFeature($featureDir);
+        $this->git->squashMerge('factory/draft');
+        $this->git->commit($this->root, $message, [$featureDir]);
+        $this->git->removeWorktree('', 'factory/draft');
+    }
+
+    private function overlayFeature(string $worktree, string $featureDir): void
+    {
+        $this->copyFeature($this->root.'/'.$featureDir, $worktree.'/'.$featureDir);
+    }
+
+    private function mirrorFeature(string $worktree, string $featureDir): void
+    {
+        $this->copyFeature($worktree.'/'.$featureDir, $this->root.'/'.$featureDir);
+    }
+
+    private function copyFeature(string $from, string $to): void
+    {
+        if (! is_dir($from)) {
+            return;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($from, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+
+        foreach ($iterator as $item) {
+            $relative = substr($item->getPathname(), strlen($from) + 1);
+            if ($relative === '.factory/state.json') {
+                continue;
+            }
+
+            $target = $to.'/'.$relative;
+            if ($item->isDir()) {
+                if (! is_dir($target)) {
+                    mkdir($target, 0777, true);
+                }
+
+                continue;
+            }
+
+            $directory = dirname($target);
+            if (! is_dir($directory)) {
+                mkdir($directory, 0777, true);
+            }
+
+            copy($item->getPathname(), $target);
+        }
     }
 
     private function advance(string $step): void
@@ -718,10 +941,6 @@ final class Workflow
         $state = $this->load();
         $state->lock = null;
         $this->save($state);
-        $relative = $state->featureDir.'/.factory/state.json';
-        if (is_file($this->root.'/'.$relative)) {
-            $this->git->commit($this->root, 'factory state', [$relative]);
-        }
     }
 
     private function currentPid(): int

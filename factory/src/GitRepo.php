@@ -36,7 +36,7 @@ final class GitRepo
      */
     public function changedFiles(string $cwd): array
     {
-        $output = $this->git(['status', '--porcelain'], $cwd);
+        $output = $this->git(['status', '--porcelain', '--untracked-files=all'], $cwd);
         $files = [];
 
         foreach (preg_split("/\r\n|\n|\r/", rtrim($output)) ?: [] as $line) {
@@ -71,7 +71,7 @@ final class GitRepo
 
     public function linkDependencies(string $worktree): void
     {
-        foreach (['vendor', 'node_modules', '.env'] as $entry) {
+        foreach (['node_modules', '.env'] as $entry) {
             $source = $this->root.'/'.$entry;
             $target = $worktree.'/'.$entry;
             if (! file_exists($source) || file_exists($target)) {
@@ -80,6 +80,8 @@ final class GitRepo
 
             symlink($source, $target);
         }
+
+        $this->installVendor($worktree);
     }
 
     public function writeJson(string $path, mixed $value): void
@@ -106,11 +108,48 @@ final class GitRepo
             $this->git(['add', '--', ...$paths], $cwd);
         }
 
-        if (trim($this->git(['status', '--porcelain'], $cwd)) === '') {
+        $staged = $this->process(['git', 'diff', '--cached', '--quiet'], $cwd);
+        $staged->run();
+        if ($staged->isSuccessful()) {
             return;
         }
 
         $this->git(['commit', '-m', $message], $cwd);
+    }
+
+    public function hasBranch(string $branch): bool
+    {
+        return $this->branchExists($branch);
+    }
+
+    public function pointBranch(string $branch, string $at): void
+    {
+        $this->git($this->branchExists($branch)
+            ? ['branch', '-f', $branch, $at]
+            : ['branch', $branch, $at]);
+    }
+
+    public function clearFeature(string $featureDir): void
+    {
+        $statePath = $this->root.'/'.$featureDir.'/.factory/state.json';
+        $backup = is_file($statePath) ? (string) file_get_contents($statePath) : null;
+        $checkout = $this->process(['git', 'checkout', 'HEAD', '--', $featureDir], $this->root);
+        $checkout->run();
+
+        if (is_dir($this->root.'/'.$featureDir)) {
+            $this->git(['clean', '-fd', '--', $featureDir]);
+        }
+
+        if ($backup === null) {
+            return;
+        }
+
+        $directory = dirname($statePath);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($statePath, $backup);
     }
 
     public function squashMerge(string $branch): void
@@ -150,6 +189,23 @@ final class GitRepo
     {
         $this->git(['reset', '--hard', 'HEAD'], $cwd);
         $this->git(['clean', '-fd', '-e', '.env', '-e', 'vendor', '-e', 'node_modules'], $cwd);
+    }
+
+    private function installVendor(string $worktree): void
+    {
+        if (! is_file($worktree.'/composer.json') || ! is_file($worktree.'/composer.lock')) {
+            return;
+        }
+
+        $vendor = $worktree.'/vendor';
+        if (is_link($vendor)) {
+            unlink($vendor);
+        }
+
+        $process = new Process(['composer', 'install', '--no-interaction', '--no-scripts', '--no-progress'], $worktree);
+        $process->setTimeout(300);
+        $process->run();
+        throw_unless($process->isSuccessful(), RuntimeException::class, trim($process->getErrorOutput()."\n".$process->getOutput()));
     }
 
     private function branchExists(string $branch): bool

@@ -35,3 +35,15 @@ it('discards an issue whose rule is not real', function () {
         ->and($assumptions->reviewAccepted())->toBeFalse()
         ->and($scenario->reviewAccepted())->toBeFalse();
 });
+
+it('treats critical through medium findings as actionable and skips low', function () {
+    $critical = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"critical","rule":"constitution:I","problem":"layer"}],"assumptions":[]}');
+    $middle = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"middle","rule":"constitution:IV","problem":"resource"}],"assumptions":[]}');
+    $low = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"low","rule":"constitution:Conventions","problem":"wording"}],"assumptions":[]}');
+    $unstated = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"rule":"constitution:Definition of Done","problem":"verify"}],"assumptions":[]}');
+
+    expect($critical->actionableIssues())->toHaveCount(1)
+        ->and($middle->actionableIssues())->toHaveCount(1)
+        ->and($low->actionableIssues())->toBe([])
+        ->and($unstated->actionableIssues())->toHaveCount(1);
+});

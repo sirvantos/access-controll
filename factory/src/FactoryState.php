@@ -22,6 +22,8 @@ final class FactoryState
         public ?array $lock,
         public int $convergeRounds,
         public array $tasks,
+        public ?string $authorChatId = null,
+        public ?string $authorModel = null,
     ) {}
 
     /**
@@ -38,6 +40,8 @@ final class FactoryState
 
         $description = $data['description'] ?? '';
         $rounds = $data['converge_rounds'] ?? 0;
+        $authorChatId = $data['author_chat_id'] ?? null;
+        $authorModel = $data['author_model'] ?? null;
 
         return new self(
             $featureDir,
@@ -48,6 +52,8 @@ final class FactoryState
             self::lock($data['lock'] ?? null),
             is_int($rounds) ? $rounds : 0,
             self::tasks($data['tasks'] ?? []),
+            is_string($authorChatId) && $authorChatId !== '' ? $authorChatId : null,
+            is_string($authorModel) && $authorModel !== '' ? $authorModel : null,
         );
     }
 
@@ -65,6 +71,8 @@ final class FactoryState
             'lock' => $this->lock,
             'converge_rounds' => $this->convergeRounds,
             'tasks' => $this->tasks,
+            'author_chat_id' => $this->authorChatId,
+            'author_model' => $this->authorModel,
         ];
     }
 

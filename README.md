@@ -48,11 +48,11 @@ If that feature already has `specs/<feature>/.factory/state.json`, `run` stops a
 The happy path does not pause. The same checkout stays on the feature branch. Each agent works in its own worktree and does not run git.
 
 1. **specify** — `spec_author` fills `spec.md`.
-2. **clarify** — the same role resolves open questions. A `spec_gap` writes `specs/<feature>/.factory/questions.md`, commits it, and stops.
+2. **clarify** — the same role resolves open questions. A `spec_gap` writes `specs/<feature>/.factory/questions.md` into the checkout and stops. That file stays uncommitted until analyze accepts the spec.
 3. **plan** — writes `plan.md` and the design notes the skill requires.
 4. **tasks** — writes `tasks.md`. Task lines look like `- [ ] T014 [US1] Implement the service (depends on T012, T013)`.
-5. **analyze** — `reviewer` checks spec, plan, and tasks. It may not change files. `changes_requested` stops the run before any code is written.
-6. **implement** — one open task at a time, in dependency order. For each task the implementer writes code and tests, then the orchestrator runs `make verify`, then the quality reviewer and the functional reviewer. Three attempts. A `spec_gap` stops the run. A passed task is merged and its checkbox becomes `- [x]`.
+5. **analyze** — `reviewer` checks spec, plan, and tasks and does not edit files. Findings at `critical`, `high`, or `medium` are passed to `spec_editor`, continuing that model's chat. The run does not stop for a person. Analyze checks the edit again, up to the same retry limit as a task. `low` findings are skipped. The run stops only when a finding is still open after that limit.
+6. **implement** — one open task at a time, in dependency order. For each task the implementer writes code and tests, then the orchestrator runs `make verify`, then the quality reviewer and the functional reviewer. Three attempts. A `spec_gap` stops the run. A passed task is kept on the draft branch and its checkbox becomes `- [x]`.
 7. **converge** — the reviewer may only append `tasks.md`. New task ids go back to implement. This repeats at most twice. No new tasks means the feature is done.
 
 `resume` continues after a stop. Clarify questions are read again from `questions.md`. An analyze failure returns to analyze. Exhausted attempts return to implement, or to converge when that step was the one that stopped.
@@ -83,19 +83,14 @@ The feature branch is the only branch that remains. Agent branches are temporary
 
 ```text
 main                         branch that was current when run started
-└── 001-gate-pass            feature branch, checked out in this repo
-    ├── factory/specify      worktree .worktrees/specify, squash-merged, then deleted
-    ├── factory/clarify
-    ├── factory/plan
-    ├── factory/tasks
-    ├── factory/analyze      read-only; deleted with no merge
-    ├── factory/T001         one task; squash-merged after verify and both reviews
-    └── factory/converge     may append tasks.md, then deleted
+└── 001-gate-pass            feature branch, two commits
+    ├── spec …               after analyze accepts the spec
+    └── implement …          after every task and converge are done
 ```
 
-For every step the orchestrator commits `state.json` on the feature branch, adds a worktree at `.worktrees/<step>` on `factory/<step>` from that HEAD, and symlinks `vendor`, `node_modules`, and `.env` into it. The worktree gets a role-specific `.cursor/cli.json`. That file is restored before the step is committed, so the tracked deny list stays as it is in the repo.
+Draft work stays on `factory/draft`. Each step uses a worktree at `.worktrees/<step>` on `factory/<step>`, branched from `factory/draft` when that branch exists. `node_modules` and `.env` are symlinks. `vendor` is installed in the worktree with `composer install`, so PHP, PHPStan, and Composer resolve that tree alone. A failed `make verify` is written to `factory/runs/<task>-verify/attempt-N/agent.log` and pasted into the next implementer attempt. The worktree gets a role-specific `.cursor/cli.json`. That file is restored before the step is recorded, so the tracked deny list stays as it is in the repo. Uncommitted edits in the checkout, such as an answer in `questions.md` or a fix in `tasks.md`, are copied into the next worktree.
 
-The agent commits nothing. The orchestrator commits inside the worktree, removes the worktree, squash-merges `factory/<step>` into the feature branch, and deletes `factory/<step>`. A successful task is one commit on the feature branch: the code, the `- [x]` checkbox, and `state.json`. Failed attempts stay on `factory/T001` and the next attempt resumes that branch. Analyze never squash-merges. A diff left by a reviewer discards the verdict.
+The agent commits nothing. The orchestrator commits inside the worktree and moves `factory/draft` to that commit. The feature branch receives a commit at two points only. Analyze accepting the spec squash-merges the draft into one `spec <feature>` commit. The run finishing after converge squash-merges the remaining draft into one `implement <feature>` commit. `state.json` rides along in those commits. A passed task stays on the draft until the feature is done. Failed attempts stay on `factory/T001` and the next attempt resumes that branch. A diff left by a reviewer discards the verdict.
 
 A lock in `state.json` stores the orchestrator pid. A live pid blocks a second `run` or `resume`. `unlock` clears a lock whose process is gone.
 
@@ -111,8 +106,9 @@ A lock in `state.json` stores the orchestrator pid. A live pid blocks a second `
 
 Models set in the contract:
 
-- **spec_author** — `claude-opus-5-5-medium`, used for specify, clarify, plan, and tasks
-- **implementer** — `composer-2.5-fast`, used for one task at a time
+- **spec_author** — `claude-opus-5-5-medium`, used for specify and clarify. Those two steps share one chat.
+- **spec_editor** — `composer-2.5`, used for plan, tasks, and analyze repairs. Those steps share a second chat. A chat stays on one model, so plan does not resume the Opus chat.
+- **implementer** — `composer-2.5`, used for one task at a time
 - **reviewer** — `grok-4.7-high`, used for analyze, both reviews, and converge
 
 `reviewer` is a different model family from the implementer.

@@ -80,6 +80,23 @@ final class AgentReply
     /**
      * @return list<array<string, mixed>>
      */
+    public function actionableIssues(): array
+    {
+        $actionable = [];
+        foreach ($this->keptIssues() as $issue) {
+            if (self::severity($issue) === 'low') {
+                continue;
+            }
+
+            $actionable[] = $issue;
+        }
+
+        return $actionable;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     private function keptIssues(): array
     {
         $issues = $this->payload['issues'] ?? [];
@@ -117,6 +134,28 @@ final class AgentReply
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $issue
+     */
+    private static function severity(array $issue): string
+    {
+        $severity = $issue['severity'] ?? null;
+        if (! is_string($severity)) {
+            return 'critical';
+        }
+
+        $severity = strtolower(trim($severity));
+        if ($severity === 'middle') {
+            $severity = 'medium';
+        }
+
+        if (in_array($severity, ['critical', 'high', 'medium', 'low'], true)) {
+            return $severity;
+        }
+
+        return 'critical';
     }
 
     private static function knownRule(string $rule): bool

@@ -18,7 +18,8 @@ feature_directory_key: feature_directory
 
 models:
   spec_author: claude-opus-5-5-medium
-  implementer: composer-2.5-fast
+  spec_editor: grok-4.6-high
+  implementer: composer-2.5
   reviewer: grok-4.7-high
 
 # The human passes a feature description. specify is the first factory step.
