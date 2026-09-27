@@ -8,7 +8,10 @@ use Symfony\Component\Process\Process;
 
 final class CursorAgent implements AgentClient
 {
-    public function __construct(private int $timeoutSeconds) {}
+    public function __construct(
+        private int $timeoutSeconds,
+        private ?FactoryLog $log = null,
+    ) {}
 
     public function run(string $cwd, string $model, string $prompt, ?string $chatId): AgentReply
     {
@@ -34,10 +37,12 @@ final class CursorAgent implements AgentClient
 
         $process = new Process($command, $cwd);
         $process->setTimeout($this->timeoutSeconds);
-        $process->run();
-
-        $stream = $process->getOutput()."\n".$process->getErrorOutput();
-        if (! $process->isSuccessful() && trim($process->getOutput()) === '') {
+        $stream = '';
+        $process->run(function (string $type, string $buffer) use (&$stream): void {
+            $stream .= $buffer;
+            $this->log?->stream($buffer);
+        });
+        if (! $process->isSuccessful() && trim($stream) === '') {
             throw new FactoryStop('agent_failed', trim($process->getErrorOutput()));
         }
 

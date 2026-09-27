@@ -56,7 +56,11 @@ it('runs specify through converge with a scripted agent', function () {
         $workflow = factoryWorkflow($root, $agent);
         $workflow->start('Record a gate pass');
 
+        $tracked = new Process(['git', 'ls-files', '--', '.specify/feature.json'], $root);
+        $tracked->mustRun();
+
         expect($workflow->statusText())->toBe('specs/001-demo done')
+            ->and(trim($tracked->getOutput()))->toBe('')
             ->and(file_get_contents($root.'/recorded.txt'))->toBe("pass\n")
             ->and(file_get_contents($root.'/specs/001-demo/tasks.md'))->toContain('- [x] T001');
 
@@ -142,7 +146,6 @@ it('refuses a second run while the current process holds the lock', function () 
 
     try {
         $dir = 'specs/001-demo';
-        mkdir($root.'/.specify', 0777, true);
         mkdir($root.'/'.$dir.'/.factory', 0777, true);
         file_put_contents($root.'/.specify/feature.json', json_encode(['feature_directory' => $dir]));
         $state = new FactoryState($dir, '001-demo', 'Record a gate pass', 'specify', null, [
@@ -178,17 +181,72 @@ function factoryRoot(): string
     factoryGit($root, ['init', '-b', 'main']);
     factoryGit($root, ['commit', '--allow-empty', '-m', 'init']);
     file_put_contents($root.'/.gitignore', "/.worktrees/\n/factory/runs/\n");
+    mkdir($root.'/.specify', 0777, true);
+    file_put_contents($root.'/.specify/.gitignore', "feature.json\n");
     mkdir($root.'/factory/prompts', 0777, true);
     mkdir($root.'/.cursor', 0777, true);
     file_put_contents($root.'/factory/prompts/implementer.md', "IMPLEMENT_TASK\n");
     file_put_contents($root.'/factory/prompts/quality_reviewer.md', "QUALITY_REVIEW\n");
     file_put_contents($root.'/factory/prompts/functional_reviewer.md', "FUNCTIONAL_REVIEW\n");
     file_put_contents($root.'/.cursor/cli.json', '{"permissions":{"allow":[]}}');
+    factoryGit($root, ['add', '--', '.gitignore', '.specify/.gitignore']);
+    factoryGit($root, ['commit', '-m', 'ignore local files']);
 
     return $root;
 }
 
-function factoryWorkflow(string $root, AgentClient $agent): Workflow
+it('continues a scaffold whose feature pointer is gitignored', function () {
+    $root = factoryRoot();
+
+    try {
+        $dir = 'specs/002-demo';
+        mkdir($root.'/'.$dir, 0777, true);
+        file_put_contents($root.'/'.$dir.'/spec.md', "draft\n");
+        file_put_contents($root.'/.specify/feature.json', json_encode(['feature_directory' => $dir])."\n");
+        factoryGit($root, ['checkout', '-b', '002-demo']);
+
+        $workflow = factoryWorkflow($root, factoryAgent(function (string $cwd, string $prompt): string {
+            $dir = 'specs/002-demo';
+            if (str_contains($prompt, 'IMPLEMENT_TASK')) {
+                file_put_contents($cwd.'/recorded.txt', "pass\n");
+
+                return '{"status":"done","summary":"recorded","assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'QUALITY_REVIEW') || str_contains($prompt, 'FUNCTIONAL_REVIEW')) {
+                return '{"verdict":"approve","issues":[],"scenarios":[{"id":"1","result":"pass"}]}';
+            }
+
+            if (str_contains($prompt, 'speckit-analyze')) {
+                return '{"verdict":"approve","issues":[],"assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'speckit-plan')) {
+                file_put_contents($cwd.'/'.$dir.'/plan.md', "plan\n");
+            }
+
+            if (str_contains($prompt, 'speckit-tasks')) {
+                file_put_contents($cwd.'/'.$dir.'/tasks.md', "## Phase 1: Setup\n\n- [ ] T001 Record a pass\n");
+            }
+
+            return '{"status":"done","summary":"ok","assumptions":[]}';
+        }), new class implements FeatureScaffolder
+        {
+            public function create(string $root, string $description): array
+            {
+                throw new RuntimeException('Scaffold already exists.');
+            }
+        });
+
+        $workflow->start('Record a gate pass');
+
+        expect($workflow->statusText())->toBe('specs/002-demo done');
+    } finally {
+        factoryRemove($root);
+    }
+});
+
+function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $scaffolder = null): Workflow
 {
     return new Workflow(
         $root,
@@ -205,13 +263,15 @@ function factoryWorkflow(string $root, AgentClient $agent): Workflow
         ]),
         new GitRepo($root),
         $agent,
-        new class implements FeatureScaffolder
+        $scaffolder ?? new class implements FeatureScaffolder
         {
             public function create(string $root, string $description): array
             {
                 $dir = 'specs/001-demo';
                 mkdir($root.'/'.$dir, 0777, true);
-                mkdir($root.'/.specify', 0777, true);
+                if (! is_dir($root.'/.specify')) {
+                    mkdir($root.'/.specify', 0777, true);
+                }
                 file_put_contents($root.'/'.$dir.'/spec.md', "draft\n");
                 file_put_contents($root.'/.specify/feature.json', json_encode([
                     'feature_directory' => $dir,

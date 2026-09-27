@@ -17,6 +17,7 @@ final class Workflow
         private GitRepo $git,
         private AgentClient $agent,
         private FeatureScaffolder $scaffolder,
+        private ?FactoryLog $log = null,
     ) {}
 
     public function start(string $description): void
@@ -25,11 +26,19 @@ final class Workflow
             throw new FactoryStop('already_started', 'This feature already has factory state. Use resume.');
         }
 
-        $created = $this->scaffolder->create($this->root, $description);
+        $existing = $this->featureDir();
+        if ($existing !== '' && is_file($this->root.'/'.$existing.'/spec.md')) {
+            $created = ['branch' => basename($existing), 'dir' => $existing];
+            $this->note('continue scaffold '.$existing);
+        } else {
+            $this->note('create feature from brief');
+            $created = $this->scaffolder->create($this->root, $description);
+            $this->note('branch '.$created['branch'].' directory '.$created['dir']);
+        }
+
         $this->git->ensureBranch($created['branch']);
         $this->git->commit($this->root, 'start '.$created['branch'], [
             $created['dir'],
-            '.specify/feature.json',
         ]);
 
         $this->save(new FactoryState(
@@ -49,6 +58,7 @@ final class Workflow
     public function resume(): void
     {
         $state = $this->load();
+        $this->note('resume '.$state->featureDir.' at '.$state->next);
         if ($state->next === 'done') {
             return;
         }
@@ -152,6 +162,7 @@ final class Workflow
                 }
 
                 $this->git->ensureBranch($state->branch);
+                $this->note('step '.$state->next);
                 $this->dispatch($state->next);
             }
         } finally {
@@ -257,6 +268,7 @@ final class Workflow
         $record = $this->load()->task($task->id);
         $attempts = $record['attempts'];
         $chatId = $record['chat_id'];
+        $this->note('task '.$task->id);
 
         while ($attempts < $this->contract->maxAttempts()) {
             $attempts++;
@@ -264,6 +276,7 @@ final class Workflow
             $state->putTask($task->id, $attempts, 'running', $chatId, '');
             $this->save($state);
 
+            $this->note('task '.$task->id.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
             $worktree = $this->prepareWorktree($task->id, 'implementer');
             $reply = $this->invoke(
                 $worktree,
@@ -290,12 +303,14 @@ final class Workflow
             }
 
             if ($reply->status === 'spec_gap') {
+                $this->note('spec gap '.$task->id);
                 $this->ensureQuestions($worktree, $this->load(), $reply);
                 $this->publishWorktree($worktree, $task->id, 'record spec gap for '.$task->id);
                 $this->stop('unresolved_questions', 'The implementer reported a spec gap for '.$task->id.'.');
             }
 
             if ($reply->status !== 'done') {
+                $this->note('task '.$task->id.' status '.$reply->status);
                 $this->rememberChat($task->id, $attempts, $chatId);
                 $this->git->discard($worktree);
                 $this->git->removeWorktree($worktree, '');
@@ -306,6 +321,7 @@ final class Workflow
             $this->git->commit($worktree, $task->id.' attempt '.$attempts);
 
             if (! $this->verify($worktree, $task->id, $attempts) || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $task, $attempts)) {
+                $this->note('task '.$task->id.' attempt '.$attempts.' rejected');
                 $this->rememberChat($task->id, $attempts, $chatId);
                 $this->git->removeWorktree($worktree, '');
 
@@ -320,6 +336,7 @@ final class Workflow
             $state->putTask($task->id, $attempts, 'done', $chatId, $this->hash($featureDir, $task));
             $this->save($state);
             $this->git->commit($this->root, $task->id.' '.$task->description);
+            $this->note('merged '.$task->id);
             $this->git->removeWorktree('', 'factory/'.$task->id);
 
             return;
@@ -331,6 +348,7 @@ final class Workflow
     private function reviewsPass(string $worktree, TaskItem $task, int $attempt): bool
     {
         foreach (['quality_reviewer', 'functional_reviewer'] as $prompt) {
+            $this->note('review '.$prompt.' for '.$task->id);
             $before = $this->git->changedFiles($worktree);
             $reply = $this->invoke(
                 $worktree,
@@ -342,11 +360,13 @@ final class Workflow
             );
 
             if ($this->git->changedFiles($worktree) !== $before) {
+                $this->note('review '.$prompt.' edited files');
                 $this->git->discard($worktree);
 
                 return false;
             }
 
+            $this->note('review '.$prompt.' '.$reply->status);
             if (! $reply->reviewAccepted()) {
                 return false;
             }
@@ -384,7 +404,9 @@ final class Workflow
         $state = $this->load();
         $state->convergeRounds++;
 
-        if (array_values(array_diff($after, $before)) !== []) {
+        $added = array_values(array_diff($after, $before));
+        if ($added !== []) {
+            $this->note('converge added '.implode(', ', $added));
             $state->next = 'implement';
             $this->save($state);
 
@@ -471,20 +493,29 @@ final class Workflow
             'spec_author' => $this->contract->model('spec_author'),
             default => $this->contract->model('reviewer'),
         };
+        $this->note('agent '.$role.' '.$model.' '.$name.' attempt '.$attempt.($chatId !== null && $chatId !== '' ? ' resume '.$chatId : ''));
         $reply = $this->agent->run($cwd, $model, $prompt, $chatId);
         $this->writeLog($name, $attempt, $reply->text);
+        $this->note('agent '.$name.' status '.$reply->status);
 
         return $reply;
     }
 
     private function verify(string $cwd, string $taskId, int $attempt): bool
     {
+        $this->note('verify '.$this->contract->verifyCommand());
         $process = Process::fromShellCommandline($this->contract->verifyCommand(), $cwd);
         $process->setTimeout($this->contract->agentTimeout());
-        $process->run();
-        $this->writeLog($taskId.'-verify', $attempt, $process->getOutput()."\n".$process->getErrorOutput());
+        $output = '';
+        $process->run(function (string $type, string $buffer) use (&$output): void {
+            $output .= $buffer;
+            $this->log?->stream($buffer);
+        });
+        $this->writeLog($taskId.'-verify', $attempt, $output);
+        $passed = $process->isSuccessful();
+        $this->note($passed ? 'verify passed' : 'verify failed');
 
-        return $process->isSuccessful();
+        return $passed;
     }
 
     private function prepareWorktree(string $name, string $role): string
@@ -501,12 +532,29 @@ final class Workflow
             mkdir($this->root.'/.worktrees', 0777, true);
         }
 
+        $this->note('worktree '.$path.' on factory/'.$safe.' role '.$role);
         $this->git->worktreeAdd($path, 'factory/'.$safe, 'HEAD');
         $this->git->linkDependencies($path);
+        $this->copyFeaturePointer($path);
         $roleName = $role === 'converge' ? 'converge' : $role;
         $this->git->writeJson($path.'/.cursor/cli.json', $this->contract->cliConfig($roleName));
 
         return $path;
+    }
+
+    private function copyFeaturePointer(string $worktree): void
+    {
+        $source = $this->root.'/.specify/feature.json';
+        if (! is_file($source)) {
+            return;
+        }
+
+        $directory = $worktree.'/.specify';
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        copy($source, $directory.'/feature.json');
     }
 
     private function sealWorktree(string $worktree, string $featureDir): void
@@ -531,6 +579,7 @@ final class Workflow
         $branch = 'factory/'.str_replace('/', '-', $branchSuffix);
         $this->git->commit($worktree, $message);
         $this->git->removeWorktree($worktree, '');
+        $this->note('squash '.$branch);
         $this->git->squashMerge($branch);
         $this->git->commit($this->root, $message);
         $this->git->removeWorktree('', $branch);
@@ -543,6 +592,7 @@ final class Workflow
         $state->next = is_int($position) ? (self::STEPS[$position + 1] ?? 'done') : 'done';
         $state->stop = null;
         $this->save($state);
+        $this->note('next '.$state->next);
     }
 
     private function stop(string $reason, string $detail): never
@@ -556,6 +606,7 @@ final class Workflow
             'resume_at' => $resumeAt,
         ];
         $this->save($state);
+        $this->note('stop '.$reason.' '.$detail);
 
         throw new FactoryStop($reason, $detail);
     }
@@ -740,6 +791,11 @@ final class Workflow
         }
 
         file_put_contents($directory.'/agent.log', $body);
+    }
+
+    private function note(string $message): void
+    {
+        $this->log?->info($message);
     }
 
     private function read(string $path): string

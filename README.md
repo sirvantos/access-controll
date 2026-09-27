@@ -25,11 +25,13 @@ Run it with Node 22 on `PATH`, because each task runs `make verify`. `cursor-age
 
 ```bash
 nvm use
-php factory/orchestrate.php run -i specs/001.md
-php factory/orchestrate.php resume
+php factory/orchestrate.php run -v -i specs/001.md
+php factory/orchestrate.php resume -v
 ```
 
 A one-line description still works: `php factory/orchestrate.php run "..."`.
+
+`-v` / `--verbose` prints each orchestrator action and the live agent and verify output to the terminal. The same action lines are always appended to `factory/runs/orchestrator.log`, so `tail -f factory/runs/orchestrator.log` shows the current step without `-v`. Agent replies and verify output for one attempt stay in `factory/runs/<step>/attempt-N/agent.log`.
 
 ### What `run` takes
 
@@ -37,7 +39,7 @@ The input is a feature brief. Pass it as one quoted argument, or point `-i` / `-
 
 The short name is up to four ASCII words from the start of the brief. Begin the file with an English heading when the rest of the text is in another language, otherwise the branch is named `NNN-feature-request`.
 
-`run` starts from the git branch that is checked out. It allocates the next `specs/NNN-short-name/` directory, writes the spec template, and records the directory in `.specify/feature.json`. That short name is the feature branch.
+`run` starts from the git branch that is checked out. It allocates the next `specs/NNN-short-name/` directory, writes the spec template, and records the directory in `.specify/feature.json`. That short name is the feature branch. `feature.json` stays on this checkout: Spec Kit gitignores it, and the orchestrator copies it into each worktree so the agent can read the active directory.
 
 If that feature already has `specs/<feature>/.factory/state.json`, `run` stops and `resume` is the way to continue.
 
