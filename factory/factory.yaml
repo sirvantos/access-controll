@@ -1,0 +1,150 @@
+# Factory contract. The orchestrator parses this file.
+# reviewer is a different model family from implementer.
+
+verify_command: make verify
+max_retries: 2
+parallel: false
+pause_after_each_task: true
+
+feature_directory_file: .specify/feature.json
+feature_directory_key: feature_directory
+
+models:
+  spec_author: claude-opus-5-5-medium
+  implementer: composer-2.5-fast
+  reviewer: grok-4.7-high
+
+workflow:
+  - id: specify
+    command: speckit-specify
+    role: spec_author
+    required: true
+  - id: clarify
+    command: speckit-clarify
+    role: spec_author
+    required: true
+    stop_if: unresolved_questions
+  - id: plan
+    command: speckit-plan
+    role: spec_author
+    required: true
+  - id: tasks
+    command: speckit-tasks
+    role: spec_author
+    required: true
+  - id: analyze
+    command: speckit-analyze
+    role: reviewer
+    required: true
+    writes: none
+    blocks_next_on: failure
+  - id: implement
+    command: speckit-implement
+    role: implementer
+    required: true
+    scope: one_task
+    prompt: factory/prompts/implementer.md
+  - id: converge
+    command: speckit-converge
+    role: converge
+    required: true
+    writes: tasks_append
+    on_new_tasks: implement
+
+# speckit-implement describes every task in tasks.md.
+# The factory passes exactly one task id and uses factory/prompts/implementer.md.
+implement_loop:
+  order:
+    - implement
+    - verify
+    - quality_review
+    - functional_review
+  verify_runner: orchestrator
+  retry_scope: whole_cycle
+  spec_gap_retries: false
+  questions_path: specs/<feature>/.factory/questions.md
+  assumptions: block_approve
+  issue_without_rule: discard
+  reviewer_diff: invalidates_verdict
+  probe_directory: outside_worktree
+  pause_shows:
+    - diff
+    - verify_exit
+    - quality_verdict
+    - functional_verdict
+    - assumptions
+  prompts:
+    implementer: factory/prompts/implementer.md
+    quality_reviewer: factory/prompts/quality_reviewer.md
+    functional_reviewer: factory/prompts/functional_reviewer.md
+
+# Implementer deny list. spec_author and converge do not use this profile.
+protected_paths:
+  - specs/**
+  - .specify/**
+  - factory/**
+  - .cursor/**
+  - .github/**
+  - .gitlab-ci.yml
+  - .gitlab/**
+  - Makefile
+  - phpstan.neon
+  - deptrac.php
+  - phpunit.xml
+
+allowed_writes_in_specs:
+  - specs/*/.factory/**
+
+roles:
+  implementer:
+    cli_profile: .cursor/cli.json
+    protected_paths:
+      - specs/**
+      - .specify/**
+      - factory/**
+      - .cursor/**
+      - .github/**
+      - .gitlab-ci.yml
+      - .gitlab/**
+      - Makefile
+      - phpstan.neon
+      - deptrac.php
+      - phpunit.xml
+    allowed_writes_in_specs:
+      - specs/*/.factory/**
+  spec_author:
+    may_write:
+      - specs/<feature>/spec.md
+      - specs/<feature>/plan.md
+      - specs/<feature>/tasks.md
+      - specs/<feature>/research.md
+      - specs/<feature>/data-model.md
+      - specs/<feature>/quickstart.md
+      - specs/<feature>/constraints.md
+      - specs/<feature>/contracts/**
+      - specs/<feature>/checklists/**
+  reviewer:
+    writes: none
+  converge:
+    may_append:
+      - specs/<feature>/tasks.md
+
+always_protected:
+  - .specify/**
+  - factory/**
+  - .cursor/**
+  - .github/**
+  - .gitlab-ci.yml
+  - .gitlab/**
+  - Makefile
+  - phpstan.neon
+  - deptrac.php
+  - phpunit.xml
+
+dependency_changes:
+  files:
+    - composer.json
+    - composer.lock
+    - package.json
+    - package-lock.json
+  rule: constitution:Prohibitions

@@ -5,14 +5,24 @@ alwaysApply: true
 
 # Protected Paths
 
-Do not create, edit, delete, or rename files under these paths:
+The factory step assigns the role. The model does not choose it. The source of truth is `factory/factory.yaml`.
 
-- `specs/**`, except files inside `specs/*/.factory/`
-- `.specify/**`
-- `factory/**`
-- `.cursor/**`
-- CI config: `.github/**`, `.gitlab-ci.yml`, `.gitlab/**`
+These paths are closed to every role: `.specify/**`, `factory/**`, `.cursor/**`, `.github/**`, `.gitlab-ci.yml`, `.gitlab/**`, `Makefile`, `phpstan.neon`, `deptrac.php`, `phpunit.xml`.
 
-`specs/*/.factory/` is the only writable pocket inside a spec directory. Writing `spec.md`, `plan.md`, or `tasks.md` is not allowed.
+## Implementer
 
-A matching Cursor CLI deny list lives in `.cursor/cli.json`. The rule is still only guidance. The orchestrator rejects a task whose diff touches a protected path.
+On `implement`, do not create, edit, delete, or rename files under `specs/**`, except files inside `specs/*/.factory/`. Writing `spec.md`, `plan.md`, or `tasks.md` is not allowed.
+
+## Spec author
+
+On `specify`, `clarify`, `plan`, and `tasks`, you may write the active feature's `spec.md`, `plan.md`, `tasks.md`, `research.md`, `data-model.md`, `quickstart.md`, `constraints.md`, `contracts/**`, and `checklists/**`. The feature directory comes from `.specify/feature.json`.
+
+## Converge
+
+On `converge`, you may append tasks to the active feature's `tasks.md` and to nothing else.
+
+## Reviewers
+
+On `analyze`, quality review, and functional review, write nothing. A diff invalidates the verdict.
+
+`.cursor/cli.json` is the implementer deny list. Do not apply its spec-artifact denies to the spec author or to converge. The orchestrator rejects a diff outside the role's writes.

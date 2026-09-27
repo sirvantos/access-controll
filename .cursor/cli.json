@@ -13,7 +13,13 @@
       "Write(specs/**/research.md)",
       "Write(specs/**/data-model.md)",
       "Write(specs/**/quickstart.md)",
-      "Write(specs/**/checklists/**)"
+      "Write(specs/**/constraints.md)",
+      "Write(specs/**/contracts/**)",
+      "Write(specs/**/checklists/**)",
+      "Write(Makefile)",
+      "Write(phpstan.neon)",
+      "Write(deptrac.php)",
+      "Write(phpunit.xml)"
     ]
   }
 }
