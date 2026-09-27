@@ -1,0 +1,14 @@
+---
+description: Short digest of the project constitution for every agent session
+alwaysApply: true
+---
+
+# Constitution
+
+The acceptance rules live in `.specify/memory/constitution.md`. This file is a digest. When they disagree, the constitution wins.
+
+- Business logic sits in `App\Modules\{Module}\Actions` (one use case) or `Services` (a shared capability). Controllers only take HTTP in and return a `JsonResource`.
+- Between business modules the link is weak: import only `App\Modules\{Other}\PublicApi`. A stronger link is legal only when the current `plan.md` records that exact exception under `Module boundary exceptions`.
+- An endpoint test walks Controller → Form Request → Action/Service → Resource. Mocking that Action or Service does not count. Fake external I/O (`Http::fake()`, `Storage::fake()`, and the matching Laravel fake).
+- Reject a new Composer or npm dependency that `plan.md` does not justify, a public contract change the task's `spec.md` does not require, a lowered or skipped Larastan/Pint gate, and `TODO` / `FIXME` / placeholder bodies.
+- A task is done only when the Definition of Done in the constitution is true: PHP gates, or the frontend gates for a frontend-only change, plus acceptance scenarios.

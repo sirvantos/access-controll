@@ -1,0 +1,25 @@
+---
+description: How to write tests and which commands prove them
+globs: "{tests/**/*.php,resources/js/**/*.spec.ts,resources/js/**/__tests__/**}"
+alwaysApply: false
+---
+
+# Testing
+
+Follow `.specify/memory/constitution.md` section III and the Definition of Done.
+
+- Write the failing Pest test before the behavior it locks.
+- Feature tests live in `tests/Feature/Modules/{Module}` and call the real HTTP stack. Do not mock the Action or Service that implements the endpoint.
+- Unit tests live in `tests/Unit/Modules/{Module}` and cover branches one HTTP call cannot reach.
+- Fake outbound HTTP, storage, cache, mail, queues, and notifications. Use the test database; do not mock Eloquent to skip a migration this feature owns.
+- Frontend tests live under `resources/js/**/__tests__` or `*.spec.ts`.
+
+This repository has no `Makefile`, so `make test` does not run. Until that target exists, prove a PHP change with:
+
+```bash
+vendor/bin/phpstan analyse -c phpstan.neon --no-progress --memory-limit=1G
+vendor/bin/pint --dirty
+php artisan test --compact tests/Feature/Modules/<Module>/<Test>.php
+```
+
+Prove a frontend-only change with `npm run test:run` and `npx vue-tsc --noEmit`. A mixed change runs both sets.

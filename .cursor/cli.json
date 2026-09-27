@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Write(.specify/**)",
+      "Write(.cursor/**)",
+      "Write(factory/**)",
+      "Write(.github/**)",
+      "Write(.gitlab-ci.yml)",
+      "Write(.gitlab/**)",
+      "Write(specs/**/spec.md)",
+      "Write(specs/**/plan.md)",
+      "Write(specs/**/tasks.md)",
+      "Write(specs/**/research.md)",
+      "Write(specs/**/data-model.md)",
+      "Write(specs/**/quickstart.md)",
+      "Write(specs/**/checklists/**)"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+---
+description: Layer direction and weak links between business modules
+globs: "{app/**/*.php,resources/js/**/*.{ts,vue},tests/**/*.php}"
+alwaysApply: false
+---
+
+# Architecture
+
+Follow `.specify/memory/constitution.md` sections I and I.c.
+
+Inside one module the call direction is Controller → Form Request → Action/Service → Model or Repository → JsonResource. An Action or Service does not import `Request`, `Response`, `Session`, `Cookie`, or `JsonResource`.
+
+A business module is `app/Modules/{Module}/`. From outside that directory the only import is `App\Modules\{Module}\PublicApi`. Do not type-hint another module's Eloquent model, add a relation or join to it, or query its table.
+
+A stronger cross-module link needs a `Module boundary exceptions` entry in the current feature's `plan.md` naming the importing class, the concrete dependency, and why `PublicApi` cannot express it. No entry means the change is rejected.
+
+`app/Http` may call Actions of the module that owns the route. That call is not a cross-module link.

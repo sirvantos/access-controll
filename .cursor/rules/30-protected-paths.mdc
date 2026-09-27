@@ -1,0 +1,18 @@
+---
+description: Paths factory agents must not modify
+alwaysApply: true
+---
+
+# Protected Paths
+
+Do not create, edit, delete, or rename files under these paths:
+
+- `specs/**`, except files inside `specs/*/.factory/`
+- `.specify/**`
+- `factory/**`
+- `.cursor/**`
+- CI config: `.github/**`, `.gitlab-ci.yml`, `.gitlab/**`
+
+`specs/*/.factory/` is the only writable pocket inside a spec directory. Writing `spec.md`, `plan.md`, or `tasks.md` is not allowed.
+
+A matching Cursor CLI deny list lives in `.cursor/cli.json`. The rule is still only guidance. The orchestrator rejects a task whose diff touches a protected path.
