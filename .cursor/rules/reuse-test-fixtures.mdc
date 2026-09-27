@@ -1,0 +1,55 @@
+---
+description: Reuse shared test payloads/samples with per-test overrides instead of duplicating JSON or attribute blocks in every scenario
+globs: "{tests/**/*.php,tests/Support/**/*.php,tests/Fixtures/**/*}"
+alwaysApply: false
+---
+
+# Reuse Test Fixtures
+
+Extend the deterministic-data rule: **share one canonical payload, then override only what the scenario needs**.
+
+Canonical families and helpers: `specs/079-shared-test-fixtures/` and `tests/Support/**` (also static fixtures under `tests/Fixtures/**` when file/CSV/JSON shape is shared).
+
+## Prefer shared base + overrides
+
+1. Search `tests/Support/<Domain>/` (and related helpers) before inventing a new attribute array or JSON body.
+2. Reuse the sample family that matches the domain (Acme manual lead vs Example LLC / RKO — do not mix default identifiers across families).
+3. Customize with `array_replace` / `array_replace_recursive` / helper `$overrides` — change only the fields that matter for this test.
+
+```php
+// ❌ BAD — new full JSON body in every test
+it('rejects duplicate tax number', function () {
+    $payload = [
+        'company_name' => 'Acme LLC',
+        'phone' => '+7 900 123-45-67',
+        'email' => 'lead@example.com',
+        // ... 15 more fields copied from the previous test ...
+        'tax_number' => '1234567890',
+    ];
+});
+
+// ✅ GOOD — shared body, local delta
+it('rejects duplicate tax number', function () {
+    $payload = acmeStoreLeadBody([
+        'tax_number' => '1234567890',
+    ]);
+});
+```
+
+```php
+// ✅ GOOD — nested AMQP/RKO sample with a small recursive override
+$payload = exampleLlcRkoSample([
+    'customer' => ['phone' => '+79990001122'],
+]);
+```
+
+## When to add a new shared helper
+
+- The same attribute/JSON shape appears (or will appear) in **two or more** tests, or is the documented sample for a domain.
+- Put it in `tests/Support/<Domain>/` with `$overrides = []` and document canonical defaults in `specs/079-shared-test-fixtures/constraints.md` when the family is cross-cutting.
+- Skip a new helper for a one-off shape used in a single test — a local array is fine until reuse appears.
+
+## Do not
+
+- Copy-paste a full payload into each `it()` / `test()` and tweak by eye.
+- Invent a second “almost identical” sample family with different default phones/emails for the same domain without an explicit reason.

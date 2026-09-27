@@ -1,0 +1,7 @@
+# Minimal Scope Fixes
+
+- When the user asks for a targeted fix, change only the code required for that behavior.
+- Do not clean up adjacent code, refactor unchanged branches, or rewrite existing style unless it is required to complete the requested fix.
+- If a new warning appears in unchanged lines of a touched file, treat it as pre-existing unless the change caused it.
+- Follow existing repo conventions and constitution preferences before replacing Laravel helpers or patterns.
+- Prefer the smallest valid correction over broader "cleanup" edits.

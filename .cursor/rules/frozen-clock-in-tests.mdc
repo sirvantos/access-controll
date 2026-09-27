@@ -1,0 +1,13 @@
+---
+description: Tests that assert a time boundary (cooldown, SLA, expiry, stale-after) freeze the clock before creating fixtures — never real now() in the fixture against real now() in the code under test
+globs: "{tests/**/*.php,resources/js/**/*.spec.ts,database/factories/**/*.php}"
+alwaysApply: false
+---
+
+# Frozen Clock In Time-Boundary Tests
+
+- A test whose assertion depends on the distance between two instants — a cooldown, SLA, expiry/TTL, retention window, «stale after N», «one second inside» vs «exactly at the boundary» — MUST freeze the clock **before creating fixtures**: `Carbon::setTestNow(Carbon::parse('2026-01-15 12:00:00'))` in Pest (`tests/Pest.php` resets it after every test), `vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-15T12:00:00Z'))` in Vitest (restore with `vi.useRealTimers()`).
+- Never build a fixture from the real `now()` and then let the code under test read its own real `now()`. The two calls straddle a second boundary with probability equal to the gap between them, and timestamp columns keep whole seconds (Eloquent writes `Y-m-d H:i:s`, Postgres `timestamp(0)`), so a `now()->subSeconds(99)` fixture reads back as 100 seconds ago and the boundary flips. Such a test passes locally and fails on a loaded `make quality-gates` run.
+- Freeze at a whole second (no microseconds) and express margins in whole seconds, so the stored value equals the intended one. Moving time inside a test is a second explicit `Carbon::setTestNow(...)` / `vi.setSystemTime(...)`, never `sleep`/`usleep`.
+- A wide margin against the real clock (`subMinutes(30)` inside a 3600-second window) is tolerable only where the outcome cannot change as time advances; when adding or touching such a case, freeze anyway.
+- Origin: 21.09.2026 — `tests/Unit/Actions/Compliance/StartComplianceCollectionActionTest.php` cooldown case failed a full `make quality-gates` run whenever the fixture's `now()` and the action's `now()` fell on different sides of a second boundary; earlier flakes of the same family had been seen before. Deterministic repro: freeze at `12:00:00.995`, create the 99-second fixture, move to `12:00:01.005` — the cooldown no longer triggers.

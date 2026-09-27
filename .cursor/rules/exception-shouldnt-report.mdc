@@ -1,0 +1,24 @@
+---
+description: Expected client/domain exceptions must use ShouldntReport; Feature tests must prove log silence
+alwaysApply: true
+---
+
+# Expected Client Exceptions Must Not Be Reported
+
+In Laravel 13, returning `false` from an exception's `report()` method means **continue with default logging**, not suppress it. Custom `report()` that returns a non-false value means "reporting handled; skip default logging".
+
+To silence expected client/domain exceptions (409/422 business conflicts):
+
+1. Prefer `implements Illuminate\Contracts\Debug\ShouldntReport`, or
+2. Register the class via `$exceptions->dontReport([...])` in `bootstrap/app.php`.
+
+Do **not** use `public function report(): false { return false; }` expecting silence — that still writes ERROR stacks to `laravel.log`.
+
+## Silence proof in tests
+
+For each domain exception that implements `ShouldntReport`, keep at least one proof:
+
+- Prefer a Feature HTTP path: `Log::fake()` before the request that surfaces the exception, then `Log::assertNothingLogged()` after the status assert (or `Log::assertNotLogged('error', …)` if the case also emits expected info).
+- When HTTP never throws the exception (Form Request validation blocks first), add a Unit proof that catches the Action throw, calls `report($e)`, and asserts nothing logged (see `DesignateHeadOfficeActionTest`).
+
+Sibling conflict/422 cases for the same `error_code` / exception family SHOULD also assert silence — do not leave only one happy-path silence case while siblings omit it.

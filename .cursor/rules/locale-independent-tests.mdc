@@ -1,0 +1,49 @@
+---
+description: Write locale- and platform-independent Pest/Vitest assertions — never hard-code host language or OS-specific date/number/message text
+globs: "{tests/**/*.php,resources/js/**/*.spec.ts,resources/js/utils/datetime.ts,resources/js/test/**/*.ts,phpunit.xml}"
+alwaysApply: false
+---
+
+# Locale-Independent Tests
+
+This product runs in multiple regions and CI environments. Tests MUST NOT depend on the host OS language, locale, or timezone.
+
+Canonical conventions: `specs/081-locale-independent-tests/` (especially `quickstart.md` and `contracts/verification-conventions.md`).
+
+## Do
+
+- Assert **stable codes, field keys, HTTP status, and structure** when behavior is under test — not pasted UI sentences.
+- For dates/times in Vitest, assert via shared product formatters (`formatShortDateTime`, `formatDateOnly`, `formatCallbackDisplay` from `@/utils/datetime`) or `t('...')` keys.
+- For localized server messages that must be verified, pin locale explicitly and compare with `__()` / `trans()` under each locale (`ru` and `en`), setting locale **before** the request that builds the message.
+- Rely on suite baselines (`TZ=UTC` for Vitest; `APP_LOCALE=ru` in `phpunit.xml`; app timezone `UTC` in `config/app.php`) — not on the developer machine language.
+
+## Do not
+
+- Hard-code month names, `dd.mm.yyyy` / `AM`/`PM` strings, or regex-escaped absolute dates in expectations.
+- Assume CI uses the same OS locale as a local Mac/Windows/Linux desktop.
+- Compare a previously captured response body after a later `app()->setLocale(...)` without re-issuing the request.
+
+```ts
+// ❌ BAD
+expect(node.text()).toContain('20 июн., 10:00')
+expect(node.text()).toContain('Jun 20, 10:00 AM')
+
+// ✅ GOOD
+expect(node.text()).toContain(formatShortDateTime('2026-06-20T10:00:00.000Z'))
+expect(node.text()).toContain(t('offices.errors.openConflictingOffice'))
+```
+
+```php
+// ❌ BAD — assumes a single runner locale
+expect($response->json('message'))->toBe('Некорректный ИНН');
+
+// ✅ GOOD — bilingual, key-driven
+foreach (['ru', 'en'] as $locale) {
+    app()->setLocale($locale);
+    $response = $this->actingAs($user)->postJson('/api/v1/...', $payload);
+    expect($response->json('errors.tax_number.0'))
+        ->toBe(__('validation.draft_contacts.tax_number_unique'));
+}
+```
+
+Fixture names in Cyrillic (`'Иван'`, company names) are fine. Guardrail: `npm run check-locale-independent-tests` (via `make frontend-verify`).

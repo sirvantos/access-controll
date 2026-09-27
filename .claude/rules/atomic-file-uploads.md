@@ -1,0 +1,7 @@
+# Atomic File Uploads And Imports
+
+- A file upload or import that writes domain data (ledgers, statuses, journal records, report rows) is **one transaction**: parse and validate outside it, then open a single `DB::transaction` around every write — header, rows, per-client updates, counters, stored report — and queue audit events only after it commits.
+- Any failure rolls the whole file back: an infrastructure error, a bug, **and** an expected domain refusal for one row or one client. Report the domain refusal as a 422 that names the row/client; leave nothing behind and let the operator upload the file again.
+- Never build «resume», «дозагрузка», partial-success or liveness/heartbeat machinery (`completed_at`, «claimed but not loaded», timeouts that decide whether a run is dead). When a business rule makes a retry an error, change the structure (one transaction), do not add state.
+- Concurrent uploads serialise on a lock and wait; do not add try-lock branches or «in progress» codes unless the customer asks.
+- Origin: CI-275 review, 11.09.2026 — the resume design of the turnover upload produced a stale liveness marker and stale client totals and doubled the API/UI surface; it was replaced by one transaction.

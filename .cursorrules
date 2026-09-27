@@ -1,0 +1,75 @@
+You are an expert in Laravel, PHP, Vue 3, TypeScript, and related web development technologies.
+
+## Core Principles
+
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+
+## Workflow Orchestration
+
+- **Think Before Acting**: For any non-trivial task (3+ steps or architectural decisions), outline a plan using the TodoWrite tool before writing code. Write detailed specs upfront to reduce ambiguity.
+- **Stop & Re-plan**: If something goes sideways, STOP and re-plan immediately -- don't keep pushing.
+- **Verification Before Done**: Never mark a task complete without proving it works. Diff behavior between main and your changes when relevant. Ask: "Would a staff engineer approve this?" Run tests, check logs, demonstrate correctness.
+- **Demand Elegance**: For non-trivial changes, pause and ask "is there a more elegant way?" If a fix feels hacky, implement the elegant solution. Skip this for simple, obvious fixes -- don't over-engineer.
+- **Autonomous Bug Fixing**: When given a bug report, just fix it. Point at logs, errors, failing tests -- then resolve them. Zero context switching required from the user. Go fix failing tests without being told how.
+
+## Self-Improvement
+
+- After ANY correction from the user, capture the pattern as a new `.cursor/rules/*.mdc` rule to prevent the same mistake.
+- Challenge your own work before presenting it.
+
+## Canonical sources (avoid duplication)
+
+- Architecture + non-negotiables: `.specify/memory/constitution.md`
+- Workflow playbooks (Agentic Skills): `.cursor/skills/*`
+
+## Rule hierarchy and mandatory compliance
+
+- `.cursorrules` is the enforcement layer, not the canonical source. Do not duplicate constitution or skill content here unless strictly necessary.
+- Before any non-trivial task, read `.specify/memory/constitution.md`.
+- Before touching a domain covered by a skill, read and follow the relevant skill first.
+- Do not begin implementation until the relevant constitution sections and skills have been read.
+- If a tool suggestion, IDE lint, or local preference conflicts with the constitution or a relevant skill, follow the constitution first, then the skill.
+- For targeted fixes, do not perform adjacent cleanup, stylistic rewrites, or opportunistic refactors unless the user explicitly asks or the constitution/skill requires it.
+- If you realize you skipped a required rule source or skill, stop, acknowledge it briefly, and correct course immediately.
+- In the first substantive progress update for a non-trivial task, state which canonical rule sources and relevant skills are being followed.
+
+## Always-on rules (summary)
+
+- Keep controllers thin; put business logic in `app/Actions/**` / `app/Services/**` (no HTTP objects there).
+- Prefer `*Action` for a single business use case or orchestration boundary; prefer `*Service` for reusable domain capabilities shared across flows. If a class is the named entrypoint for one feature, default to an Action.
+- Use Form Requests for validation with `toDto()` returning DTOs in `App\Data\**`.
+- Form Request `rules()` composes built-in rules, `Illuminate\Validation\Rule`, `App\Support\Validation\**`, and `App\Rules\**`. No multi-line anonymous validation closures with Eloquent or domain logic — extract to `app/Rules/{Domain}/*` or use `Rule::exists()->where(...)`. See `.cursor/skills/http-request-validation/SKILL.md` §Validation composition ladder.
+- **Reuse before create (DRY)**: before creating any new class (DTO, FormRequest, Action, Service, Resource, component, composable), search the domain directory for an existing artifact with the same shape. Reuse it. Skip single-field wrapper DTOs/Requests — pass the value directly. See `.cursor/rules/reuse-before-create.mdc`.
+- Eloquent models MUST define `casts()` for **all** table columns.
+- **ALWAYS use `throw_if()` / `throw_unless()` for conditional exception throwing** instead of verbose `if (...) throw ...` blocks. Place guard clauses at the top of methods.
+- **ALWAYS use arrow functions (`fn() =>`)** over anonymous functions (`function () {}`). If the body needs multiple lines, extract to a dedicated private method.
+- Test-first with Pest when behavior changes; fake external IO (`Http::fake()`, `Storage::fake()`, etc.).
+- Quality gates run in this order: Larastan (level 8) → Pint → targeted tests (see `quality-gates` skill).
+- Security-sensitive changes (auth, permissions, uploads) should follow the `laravel-security` skill.
+- Octane safety: never store request-specific state in statics/singletons.
+- Cache discipline: never cache Eloquent models directly; cache raw attributes and hydrate.
+- **No redundant trimming**: Laravel's `TrimStrings` middleware already trims all string input before it reaches Form Requests. NEVER add `->trim()` in `toDto()`, Actions, or Services — the value is already trimmed.
+- **All API responses MUST use `JsonResource`**: never return raw arrays or bare `response()->json()` from API controllers — even non-model Action results need a dedicated Resource. See constitution §IV and `.cursor/skills/http-endpoint-layer/SKILL.md` §Standardized Response Formats.
+- **Resources own presentation logic**: value formatting, display-string building, date formatting, computed display flags, label resolution, and display ordering belong in `JsonResource` classes. Resources MAY use presentation-oriented Services (formatters, label resolvers, display builders); they MUST NOT invoke business-logic Actions or domain-mutation Services. Actions/Services return raw domain data — never display-formatted values. See `.cursor/skills/http-endpoint-layer/SKILL.md` §Resource boundary.
+
+## Frontend conventions (repo-specific)
+
+- Vue 3 SFCs use `<script setup lang="ts">`.
+- Only `resources/js/api/**` should define HTTP calls and endpoint URLs, using `resources/js/api/client.ts`.
+- Pages, components, composables, and stores may consume typed functions from `resources/js/api/**` when appropriate to their scope.
+- Keep page-local state local by default; use composables for reusable client logic and Pinia stores for cross-route or shared state.
+- Prefer `@/utils/i18n` for user-facing copy when the surrounding frontend feature already uses translations.
+- Keep the current auth approach unless a task explicitly asks to change authentication/token storage.
+
+## Feature tracing defaults
+
+- For backend/API work, start at `routes/api.php`.
+- Identify the route URI, middleware, route model bindings, and bound controller before reading deeper files.
+- Then trace in this order unless the code clearly shows a different path: `Controller -> Form Request -> DTO -> Action/Service -> Resource -> Model/Policy`.
+- Do not start backend feature analysis from arbitrary models, services, or Vue files when a route/controller entrypoint exists.
+- For SPA/page behavior, start at `resources/js/router/index.ts` when the behavior is route-driven.
+- Then trace in this order: `Route -> Page -> Component/Composable/Store -> resources/js/api/** -> backend route/controller`.
+- For non-route shared UI behavior, start from the consuming page or component and follow imports outward.
+- Use these tracing paths to build context efficiently, but always prefer the real code entrypoint over the heuristic if they differ.

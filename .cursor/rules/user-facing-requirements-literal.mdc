@@ -1,0 +1,11 @@
+---
+description: Preserve user-facing requirement semantics literally
+alwaysApply: true
+---
+
+# Preserve User-Facing Semantics
+
+- When a requirement is written in user-facing terms like "characters", do not silently reinterpret it as bytes or another technical unit.
+- For counters, limits, and validation messages shown in the UI, prefer the unit the user expects to see unless the user explicitly approves a technical alternative.
+- If backend or storage constraints conflict with the requested user-facing behavior, align the implementation to the requested behavior or raise the conflict explicitly before changing the UX contract.
+- For UI behaviors like dropdowns, expansion direction, and error highlighting, follow the described visual behavior literally; do not substitute a different interaction that is merely easier to implement.

@@ -1,0 +1,42 @@
+---
+description: Search for existing code to reuse before creating new classes, helpers, or patterns — applies project-wide across all layers
+alwaysApply: true
+---
+
+# Reuse Before Create (project-wide)
+
+Before creating any new class, helper, constant, or pattern, **search the relevant directory for an existing artifact with the same shape or purpose**. Reuse or extend it instead of duplicating.
+
+## Universal checklist (every layer)
+
+1. **Search first** — grep the domain folder (`app/Actions/<Domain>/`, `app/Data/<Domain>/`, `app/Http/Requests/<Domain>/`, `resources/js/components/<domain>/`, etc.) for existing classes with the same property set, signature, or responsibility.
+2. **Reuse if found** — rename to a shape-oriented name when the existing name is too endpoint-specific.
+3. **Skip the wrapper** when the new class would contain only a single field or trivially delegate. Pass the value directly instead.
+
+## Backend examples
+
+| Layer | Duplication signal | Fix |
+|---|---|---|
+| **DTO** | Two DTOs in the same domain with identical properties | Share one DTO, name it by shape (e.g. `NotificationActorData`) |
+| **DTO** | DTO wraps a single model/primitive | Skip the DTO; pass the model/primitive directly to the Action |
+| **FormRequest** | Two requests with same `authorize()`, `rules()`, `toDto()` | Share one FormRequest across both endpoints |
+| **Action/Service** | Two actions with near-identical `execute()` bodies | Extract shared logic into one action with a parameter, or a shared Service |
+| **Resource** | Two resources serializing the same model identically | Reuse one resource |
+| **Validation** | Same regex/constant defined in multiple Form Requests | Extract to a shared rules class (e.g. `App\Support\Validation\ContactRules`) |
+| **Validation** | Frontend regex duplicating backend regex | Import from `resources/js/utils/validation.ts` |
+| **Middleware** | Two middleware with identical logic | Use one with a parameter |
+
+## Frontend examples
+
+| Layer | Duplication signal | Fix |
+|---|---|---|
+| **Component** | Two components with same template + logic, different names | Extract a shared component with props |
+| **Composable** | Two composables with identical reactive state + methods | Merge into one parameterized composable |
+| **API module** | Two functions hitting different endpoints but identical request/response handling | Extract a shared helper in `resources/js/api/` |
+| **Store** | Two stores with same state shape | Merge or use a factory composable |
+
+## When duplication is acceptable
+
+- The artifacts are in **different bounded contexts** and are expected to diverge independently.
+- A shared abstraction would create **tight coupling** between unrelated features.
+- If unsure, default to reuse — split later if the shapes genuinely diverge.

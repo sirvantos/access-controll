@@ -1,0 +1,11 @@
+---
+description: Scope make quality-gates to code-affecting changes only
+alwaysApply: true
+---
+
+# Quality Gates Scope
+
+- Run `make quality-gates` only after changes that touch application source, tests, frontend source, CI/build-affecting config, `Makefile`, or other runtime/build behavior.
+- Do not run `make quality-gates` for documentation-only changes.
+- Speckit-only artifacts under `specs/**` (`spec.md`, `plan.md`, `tasks.md`, `research.md`, `data-model.md`, `quickstart.md`, `constraints.md`, planning contracts, and checklists) are documentation-only unless implementation code or build/runtime config also changed.
+- For documentation-only work, validate document-specific requirements instead: no unresolved placeholders, no `[NEEDS CLARIFICATION: ...]` markers when the command requires resolution, correct checklist/task format, and alignment with the requested Speckit workflow.

@@ -1,0 +1,11 @@
+---
+name: rko-head-office-director
+description: Head office director detection rules for RKO intake visibility/mutation/reload (CRM director role + designated head office). Use when touching RkoRequestIntakePolicy, RKO access test helpers, or any RKO visibility/assign/reload logic — the original files this covers are app/Policies/RkoRequestIntakePolicy.php, tests/Support/Rko/RkoRequestIntakeAccess.php, and specs/**/constraints.md.
+---
+
+# RKO Head Office Director Detection
+
+- Global RKO intake **visibility and mutation** (`canViewAll`, card edit, assign, additional services, duplicate mark) is granted to CRM administrators and any user with CRM role `director` (`UserRole::Director`). Managers with an **active Director-role assignment** to the **designated** head office (`offices.is_head_office = true` and `deleted_at IS NULL`) also receive global visibility.
+- Global RKO intake **reload** (`can_reload_incoming_message_log` / `retry`) remains limited to CRM administrators and directors/managers with an **active Director-role assignment** to the designated head office.
+- Do **not** treat every root branch (`type = branch` + `parent_id IS NULL`) as the head office. Regional branches such as «Филиал Краснодар» are root branches without `is_head_office`; they must not grant reload via head-office detection alone.
+- Test helpers: `headOfficeDirectorUser()` must attach to the designated head office (`is_head_office = true`), reusing an existing one when present (unique active head-office constraint). Use `regionalBranchDirectorUser()` / `regionalDirectorUser()` for CRM director personas (they now share global view/mutate with other directors; reload stays false unless HO assignment).

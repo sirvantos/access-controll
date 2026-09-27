@@ -1,0 +1,11 @@
+---
+description: Keep Spec Kit spec directories independent from git branch names
+alwaysApply: true
+---
+
+# Speckit Branch And Numbering
+
+- `/speckit-specify` creates the spec directory and records it in `.specify/feature.json`. The git extension hook `speckit.git.feature` creates the branch and does not choose the spec directory name.
+- When the user gives an explicit branch name, pass it through as `GIT_BRANCH_NAME` so the git hook uses that name.
+- Spec numbers come from existing directories under `specs/` (`feature_numbering: sequential` in `.specify/init-options.json`). Do not derive the number from remote branch names.
+- In the first progress update, state the spec directory and, when a branch was created, the branch name.

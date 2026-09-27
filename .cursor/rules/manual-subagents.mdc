@@ -1,0 +1,10 @@
+---
+description: Only run backend/frontend/contract subagents when explicitly requested by the user
+alwaysApply: true
+---
+
+# Manual Subagent Invocation
+
+- Do not auto-launch the `backend`, `frontend`, or `contract` subagents.
+- Only run these subagents when the user explicitly asks for them (or clearly approves).
+- Handle tasks directly yourself by default; prefer asking for confirmation before delegating.

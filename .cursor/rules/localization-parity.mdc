@@ -1,0 +1,13 @@
+---
+description: Keep user-facing localization keys in Russian and English
+globs: "{lang/**/*.php,resources/js/locales/*.json,app/Http/Requests/**/*.php,resources/js/**/*.{ts,vue}}"
+alwaysApply: false
+---
+
+# Localization Parity
+
+When adding or changing user-facing copy, validation messages, labels, hints, or API error text, update both Russian and English localization sources.
+
+- Backend validation messages must not be hardcoded in Form Requests; use `lang/ru` and `lang/en` keys.
+- Frontend UI text must use locale keys in both `resources/js/locales/ru.json` and `resources/js/locales/en.json`.
+- If a resource or API type exposes a new user-facing field, update related contract docs and localized validation/help text together.

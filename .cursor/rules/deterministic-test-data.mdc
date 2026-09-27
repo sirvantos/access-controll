@@ -1,0 +1,41 @@
+---
+description: Prefer concrete, fixed test values over blind factory/faker randomness; generative checks are supplementary only
+globs: "{tests/**/*.php,tests/Support/**/*.php,database/factories/**/*.php}"
+alwaysApply: false
+---
+
+# Deterministic Test Data
+
+Do not blindly trust factory defaults or Faker output for values under assertion. Primary scenarios MUST use **known, concrete values**.
+
+Canonical samples and merge rules: `specs/079-shared-test-fixtures/` (`constraints.md`, `quickstart.md`, `contracts/test-fixtures.md`). Helpers live under `tests/Support/**` and load via `tests/Pest.php`.
+
+## Prefer concrete values
+
+- Pass explicit attributes / overrides for fields the test asserts or that affect branching (tax number, phone, email, role, dates, status codes).
+- Prefer shared sample helpers (`acmeContactAttributes()`, `exampleLlcContactAttributes()`, `adminUser()`, `managerWithCampaign()`, …) over ad-hoc `fake()->...` in the scenario.
+- Factories are fine for **wiring** unrelated required relations; they are not a source of truth for asserted fields.
+
+```php
+// ❌ BAD — assertion depends on random Faker output
+$contact = Contact::factory()->create();
+expect($contact->email)->toBe($contact->email); // tautology / flaky coupling
+
+// ✅ GOOD — concrete value, optionally via shared sample
+$contact = Contact::factory()->create(acmeContactAttributes([
+    'email' => 'lead@example.com',
+    'tax_number' => '1234567890',
+]));
+expect($contact->email)->toBe('lead@example.com');
+```
+
+## Generative coverage is secondary
+
+- Property-style / random / large Faker datasets MAY exist as **additional** checks.
+- They MUST NOT be the only or primary proof of the behavior under test.
+- When uniqueness is required, override explicitly in the scenario instead of hoping Faker stays unique.
+
+## Dates and clocks
+
+- Prefer fixed timestamps (`Carbon::parse('...')`, `Carbon::setTestNow(...)`) over `now()` when the exact instant matters.
+- Do not assert against host-local formatting of those values (see `locale-independent-tests` rule).
