@@ -2,12 +2,13 @@
     "feature_dir": "specs/001-user-authentication-and-roles",
     "branch": "001-user-authentication-and-roles",
     "description": "User authentication and roles for a CRM service for access control and time tracking.\n\nThe service serves multiple companies. It stores employees with face photos, receives entry/exit events from face recognition terminals, and calculates hours worked. This is personal and biometric data, so only authenticated users may access it, and only within the limits of their role.\n\nUsers sign in with email and password. There are three roles:\n- Super admin: the service owner. Manages all companies and creates the first administrator for each company. The first super admin is created by a console command during installation. Super admins cannot be created through the UI.\n- Company admin: manages their own company, including employees, photos, terminals, settings, and the company's users.\n- Viewer: read-only access to their own company's events, timesheets, and reports.\n\nEvery user except the super admin belongs to exactly one company. New users are added by email invitation and set their own password. The service needs password recovery, user deactivation (users are never deleted), and protection against password guessing. A company must always have at least one active admin. Users of a deactivated company cannot sign in.\n\nEmployees who pass through the terminal are not CRM users.\n\nOut of scope for now: two-factor authentication, Google/SSO sign-in, self-registration, custom roles.",
-    "next": "specify",
-    "stop": null,
-    "lock": {
-        "pid": 39996,
-        "at": "2026-09-27T12:25:36+00:00"
+    "next": "stopped",
+    "stop": {
+        "reason": "unresolved_questions",
+        "detail": "Answer specs/001-user-authentication-and-roles/.factory/questions.md and run resume.",
+        "resume_at": "specify"
     },
+    "lock": null,
     "converge_rounds": 0,
     "tasks": []
 }
