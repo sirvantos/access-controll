@@ -25,15 +25,19 @@ Run it with Node 22 on `PATH`, because each task runs `make verify`. `cursor-age
 
 ```bash
 nvm use
-php factory/orchestrate.php run "Сотрудник отмечает проход через турникет картой. Система пишет событие и отдаёт его в GET /api/v1/passes за сегодня."
+php factory/orchestrate.php run -i specs/001.md
 php factory/orchestrate.php resume
 ```
 
+A one-line description still works: `php factory/orchestrate.php run "..."`.
+
 ### What `run` takes
 
-The only argument is a feature description. The factory turns that sentence into a spec, a plan, tasks, and the code that satisfies them.
+The input is a feature brief. Pass it as one quoted argument, or point `-i` / `--input` at a markdown file. `specs/001.md` is only the brief. The factory still creates the next `specs/NNN-short-name/` directory and writes `spec.md` there. A file in `specs/` does not consume a feature number; numbering looks at directories.
 
-`run` starts from the git branch that is checked out. It allocates the next `specs/NNN-short-name/` directory, writes the spec template, and records the directory in `.specify/feature.json`. The short name is up to four ASCII words from the description. A description without ASCII words is named `feature-request`. The same name becomes the feature branch, created from the branch that was current when `run` started.
+The short name is up to four ASCII words from the start of the brief. Begin the file with an English heading when the rest of the text is in another language, otherwise the branch is named `NNN-feature-request`.
+
+`run` starts from the git branch that is checked out. It allocates the next `specs/NNN-short-name/` directory, writes the spec template, and records the directory in `.specify/feature.json`. That short name is the feature branch.
 
 If that feature already has `specs/<feature>/.factory/state.json`, `run` stops and `resume` is the way to continue.
 

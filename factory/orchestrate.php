@@ -6,6 +6,7 @@ use Access\Factory\Contract;
 use Access\Factory\CursorAgent;
 use Access\Factory\FactoryStop;
 use Access\Factory\GitRepo;
+use Access\Factory\RunInput;
 use Access\Factory\ScriptFeatureScaffolder;
 use Access\Factory\Workflow;
 
@@ -13,7 +14,6 @@ require __DIR__.'/bootstrap.php';
 
 $root = dirname(__DIR__);
 $command = $argv[1] ?? '';
-$argument = $argv[2] ?? '';
 $contract = Contract::load($root);
 
 $workflow = new Workflow(
@@ -28,7 +28,7 @@ try {
     match ($command) {
         'vet' => vet($workflow),
         'graph' => fwrite(STDOUT, $workflow->graphText()."\n"),
-        'run' => run($workflow, $argument),
+        'run' => run($workflow, RunInput::description($root, array_slice($argv, 2))),
         'status' => fwrite(STDOUT, $workflow->statusText()."\n"),
         'resume' => $workflow->resume(),
         'stale' => stale($workflow),
@@ -64,7 +64,7 @@ function vet(Workflow $workflow): void
 function run(Workflow $workflow, string $description): void
 {
     if (trim($description) === '') {
-        fwrite(STDERR, "Pass a feature description: php factory/orchestrate.php run \"...\"\n");
+        fwrite(STDERR, "Pass a feature description or -i <file>.\n");
         exit(1);
     }
 
@@ -87,6 +87,6 @@ function stale(Workflow $workflow): void
 
 function usage(): never
 {
-    fwrite(STDERR, "Usage: php factory/orchestrate.php vet|graph|run|status|resume|stale|unlock\n");
+    fwrite(STDERR, "Usage: php factory/orchestrate.php vet|graph|run [-i <file>]|status|resume|stale|unlock\n");
     exit(1);
 }
