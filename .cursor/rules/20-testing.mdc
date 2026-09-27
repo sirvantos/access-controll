@@ -14,12 +14,4 @@ Follow `.specify/memory/constitution.md` section III and the Definition of Done.
 - Fake outbound HTTP, storage, cache, mail, queues, and notifications. Use the test database; do not mock Eloquent to skip a migration this feature owns.
 - Frontend tests live under `resources/js/**/__tests__` or `*.spec.ts`.
 
-This repository has no `Makefile`, so `make test` does not run. Until that target exists, prove a PHP change with:
-
-```bash
-vendor/bin/phpstan analyse -c phpstan.neon --no-progress --memory-limit=1G
-vendor/bin/pint --dirty
-php artisan test --compact tests/Feature/Modules/<Module>/<Test>.php
-```
-
-Prove a frontend-only change with `npm run test:run` and `npx vue-tsc --noEmit`. A mixed change runs both sets.
+Prove a change with `make test` for the suites it touches, and `make verify` before the work is done. `make verify` runs formatter checks, Larastan, deptrac, the production Vue build, Pest, and Vitest. It checks formatting and does not rewrite files. A PHP-only change may use `php artisan test --compact tests/Feature/Modules/<Module>/<Test>.php` while iterating, then `make verify`.
