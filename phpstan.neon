@@ -8,6 +8,8 @@ parameters:
     - app
     - database/factories
     - database/seeders
+    - factory/src
+    - factory/orchestrate.php
 
   tmpDir: storage/phpstan
 

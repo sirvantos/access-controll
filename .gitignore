@@ -23,6 +23,8 @@
 /storage/pail
 /storage/phpstan
 /vendor
+/.worktrees/
+/factory/runs/
 /database/*.sqlite
 /database/*.sqlite-journal
 _ide_helper.php
