@@ -32,6 +32,28 @@ A successful sign-in resets the per-account consecutive failure count.
 | Invitation link lifetime | 7 days from sending | FR-024 |
 | Password reset link lifetime | 60 minutes from sending | FR-032 |
 
+## Field lengths
+
+| Name | Value | Used by |
+|------|-------|---------|
+| Email maximum length | 255 characters | FR-001, FR-007, invitations, console command |
+| Company name maximum length | 255 characters | FR-019, company creation |
+
+Both limits are the `string` column size, which is the storage limit. The spec sets neither value (see plan Assumptions).
+
+## Tokens
+
+| Name | Value | Used by |
+|------|-------|---------|
+| Invitation token length | 64 random characters (stored as SHA-256 hash) | FR-024, FR-027 |
+
+## Lists and general rate limit
+
+| Name | Value | Used by |
+|------|-------|---------|
+| Page size for company list, company user list, and invitation lists | 15 (Laravel `paginate()` default) | FR-019, FR-028 |
+| General API requests per user (or per source when signed out) | 60 per minute | Constitution Security Requirements |
+
 ## Roles
 
 | Code | Meaning | Assignable in UI |

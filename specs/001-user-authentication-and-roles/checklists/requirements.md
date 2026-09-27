@@ -31,6 +31,6 @@
 
 ## Notes
 
-- Open: FR-020 carries one [NEEDS CLARIFICATION] marker about the super admin's reach inside a company (users only, full data, or neither). The question is recorded in `../.factory/questions.md`. Acceptance scenarios for that scope will be added once it is answered.
+- Resolved 2026-09-27: FR-020 (the super admin's reach inside a company) was answered with option A in `../.factory/questions.md`. The spec's Clarifications section, US2-7/8, and SC-010 reflect it.
 - Role codes in `constraints.md` are stable identifiers for the three fixed roles, not an implementation detail.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
