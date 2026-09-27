@@ -14,6 +14,8 @@ final class Workflow
 {
     private const STEPS = ['specify', 'clarify', 'plan', 'tasks', 'analyze', 'implement', 'converge', 'done'];
 
+    private const WAVE_LIMIT = 5;
+
     public function __construct(
         private string $root,
         private Contract $contract,
@@ -361,39 +363,40 @@ final class Workflow
 
     private function implement(): void
     {
-        foreach ($this->board() as $task) {
-            if ($task->done) {
-                continue;
+        while (true) {
+            $wave = TaskBoard::wave($this->board(), self::WAVE_LIMIT);
+            if ($wave === []) {
+                break;
             }
 
-            $this->implementTask($task);
+            $this->implementWave($wave);
         }
 
         $this->advance('implement');
     }
 
-    private function implementTask(TaskItem $task): void
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function implementWave(array $wave): void
     {
-        $record = $this->load()->task($task->id);
-        $attempts = $record['attempts'];
-        $chatId = $record['chat_id'];
-        $this->note('task '.$task->id);
+        $label = $this->waveLabel($wave);
+        [$attempts, $chatId] = $this->waveProgress($wave);
+        $this->note('task '.$label);
 
         while ($attempts < $this->contract->maxAttempts()) {
             $attempts++;
-            $state = $this->load();
-            $state->putTask($task->id, $attempts, 'running', $chatId, '');
-            $this->save($state);
+            $this->saveWave($wave, $attempts, 'running', $chatId);
 
-            $this->note('task '.$task->id.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
-            $worktree = $this->prepareWorktree($task->id, 'implementer');
-            $this->overlayFeature($worktree, $state->featureDir);
+            $this->note('task '.$label.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
+            $worktree = $this->prepareWorktree($label, 'implementer');
+            $this->overlayFeature($worktree, $this->load()->featureDir);
             $reply = $this->invoke(
                 $worktree,
                 'implementer',
-                $this->implementPrompt($task),
+                $this->implementPrompt($wave),
                 $chatId,
-                $task->id,
+                $label,
                 $attempts,
             );
             $chatId = $reply->chatId ?? $chatId;
@@ -404,7 +407,7 @@ final class Workflow
                 $this->assertCleanRole('implementer', $featureDir, $worktree);
             } catch (FactoryStop $stop) {
                 $this->git->discard($worktree);
-                $this->rememberChat($task->id, $attempts, $chatId);
+                $this->rememberWave($wave, $attempts, $chatId);
                 if ($attempts >= $this->contract->maxAttempts()) {
                     $this->stop($stop->reason, $stop->getMessage());
                 }
@@ -413,81 +416,89 @@ final class Workflow
             }
 
             if ($reply->status === 'spec_gap') {
-                $this->note('spec gap '.$task->id);
+                $this->note('spec gap '.$label);
                 $this->ensureQuestions($worktree, $this->load(), $reply);
-                $this->keepDraft($worktree, 'factory/'.$task->id, 'record spec gap for '.$task->id);
+                $this->keepDraft($worktree, 'factory/'.$label, 'record spec gap for '.$label);
                 $this->mirrorFeature($worktree, $featureDir);
-                $this->git->removeWorktree($worktree, 'factory/'.$task->id);
-                $this->stop('unresolved_questions', 'The implementer reported a spec gap for '.$task->id.'.');
+                $this->git->removeWorktree($worktree, 'factory/'.$label);
+                $this->stop('unresolved_questions', 'The implementer reported a spec gap for '.$label.'.');
             }
 
             if ($reply->status !== 'done') {
-                $this->note('task '.$task->id.' status '.$reply->status);
-                $this->rememberChat($task->id, $attempts, $chatId);
+                $this->note('task '.$label.' status '.$reply->status);
+                $this->rememberWave($wave, $attempts, $chatId);
                 $this->git->discard($worktree);
                 $this->git->removeWorktree($worktree, '');
 
                 continue;
             }
 
-            $this->git->commit($worktree, $task->id.' attempt '.$attempts);
-            $verified = $this->verify($worktree, $task->id, $attempts);
+            $this->git->commit($worktree, $label.' attempt '.$attempts);
+            $verified = $this->verify($worktree, $label, $attempts);
             if (! $verified) {
-                $this->rememberFeedback($task->id, [
+                $this->rememberFeedback($label, [
                     'kind' => 'verify',
-                    'log' => $this->verifyLog($task->id, $attempts),
+                    'log' => $this->verifyLog($label, $attempts),
                 ]);
             } elseif ($reply->blocksApproval()) {
-                $this->rememberFeedback($task->id, [
+                $this->rememberFeedback($label, [
                     'kind' => 'assumptions',
                     'assumptions' => $reply->payload['assumptions'] ?? [],
                 ]);
             }
 
-            if (! $verified || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $task, $attempts)) {
-                $this->note('task '.$task->id.' attempt '.$attempts.' rejected');
-                $this->rememberChat($task->id, $attempts, $chatId);
+            if (! $verified || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $wave, $attempts)) {
+                $this->note('task '.$label.' attempt '.$attempts.' rejected');
+                $this->rememberWave($wave, $attempts, $chatId);
                 $this->git->removeWorktree($worktree, '');
 
                 continue;
             }
 
-            $this->clearFeedback($task->id);
+            $this->clearFeedback($label);
 
             $tasksPath = $worktree.'/'.$featureDir.'/tasks.md';
-            file_put_contents($tasksPath, TaskBoard::markDone((string) file_get_contents($tasksPath), $task->id));
-            $this->git->commit($worktree, $task->id.' '.$task->description);
-            $this->git->pointBranch('factory/draft', 'factory/'.$task->id);
+            $markdown = (string) file_get_contents($tasksPath);
+            foreach ($wave as $task) {
+                $markdown = TaskBoard::markDone($markdown, $task->id);
+            }
+            file_put_contents($tasksPath, $markdown);
+            $message = count($wave) === 1 ? $wave[0]->id.' '.$wave[0]->description : $label;
+            $this->git->commit($worktree, $message);
+            $this->git->pointBranch('factory/draft', 'factory/'.$label);
             $this->mirrorFeature($worktree, $featureDir);
-            $this->git->removeWorktree($worktree, 'factory/'.$task->id);
-            $state = $this->load();
-            $state->putTask($task->id, $attempts, 'done', $chatId, $this->hash($featureDir, $task));
-            $this->save($state);
-            $this->note('drafted '.$task->id);
+            $this->git->removeWorktree($worktree, 'factory/'.$label);
+            $this->saveWave($wave, $attempts, 'done', $chatId, true);
+            $this->note('drafted '.$label);
 
             return;
         }
 
-        $this->stop('retries_exhausted', $task->id.' used '.$this->contract->maxAttempts().' attempts.');
+        $this->stop('retries_exhausted', $label.' used '.$this->contract->maxAttempts().' attempts.');
     }
 
-    private function reviewsPass(string $worktree, TaskItem $task, int $attempt): bool
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function reviewsPass(string $worktree, array $wave, int $attempt): bool
     {
+        $label = $this->waveLabel($wave);
+        $context = $this->waveContext($wave);
         foreach (['quality_reviewer', 'functional_reviewer'] as $prompt) {
-            $this->note('review '.$prompt.' for '.$task->id);
+            $this->note('review '.$prompt.' for '.$label);
             $before = $this->git->changedFiles($worktree);
             $reply = $this->invoke(
                 $worktree,
                 'reviewer',
-                $this->read($this->root.'/factory/prompts/'.$prompt.'.md')."\n\n".$this->taskContext($task),
+                $this->read($this->root.'/factory/prompts/'.$prompt.'.md')."\n\n".$context,
                 null,
-                $task->id.'-'.$prompt,
+                $label.'-'.$prompt,
                 $attempt,
             );
 
             if ($this->git->changedFiles($worktree) !== $before) {
                 $this->note('review '.$prompt.' edited files');
-                $this->rememberFeedback($task->id, $this->reviewFeedback($prompt, $reply, true));
+                $this->rememberFeedback($label, $this->reviewFeedback($prompt, $reply, true));
                 $this->git->discard($worktree);
 
                 return false;
@@ -495,7 +506,7 @@ final class Workflow
 
             $this->note('review '.$prompt.' '.$reply->status);
             if (! $reply->reviewAccepted()) {
-                $this->rememberFeedback($task->id, $this->reviewFeedback($prompt, $reply, false));
+                $this->rememberFeedback($label, $this->reviewFeedback($prompt, $reply, false));
 
                 return false;
             }
@@ -551,17 +562,77 @@ final class Workflow
         $this->save($state);
     }
 
-    private function implementPrompt(TaskItem $task): string
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function implementPrompt(array $wave): string
     {
         $prompt = $this->read($this->root.'/factory/prompts/implementer.md')
-            ."\n\n".$this->taskContext($task)
-            ."\n\nDo not run make verify. Do not commit.";
-        $feedback = $this->readFeedback($task->id);
+            ."\n\n".$this->waveContext($wave)
+            ."\n\nImplement these tasks in the listed order. Do not run make verify. Do not commit.";
+        $feedback = $this->readFeedback($this->waveLabel($wave));
         if ($feedback === null) {
             return $prompt;
         }
 
         return $prompt."\n\n".$this->feedbackText($feedback);
+    }
+
+    /**
+     * @param  list<TaskItem>  $wave
+     * @return array{0: int, 1: ?string}
+     */
+    private function waveProgress(array $wave): array
+    {
+        $state = $this->load();
+        $attempts = 0;
+        $chatId = null;
+        foreach ($wave as $task) {
+            $record = $state->task($task->id);
+            $attempts = max($attempts, $record['attempts']);
+            if ($chatId === null && is_string($record['chat_id'])) {
+                $chatId = $record['chat_id'];
+            }
+        }
+
+        return [$attempts, $chatId];
+    }
+
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function saveWave(array $wave, int $attempts, string $status, ?string $chatId, bool $hashed = false): void
+    {
+        $state = $this->load();
+        foreach ($wave as $task) {
+            $state->putTask(
+                $task->id,
+                $attempts,
+                $status,
+                $chatId,
+                $hashed ? $this->hash($state->featureDir, $task) : '',
+            );
+        }
+
+        $this->save($state);
+    }
+
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function rememberWave(array $wave, int $attempts, ?string $chatId): void
+    {
+        foreach ($wave as $task) {
+            $this->rememberChat($task->id, $attempts, $chatId);
+        }
+    }
+
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function waveLabel(array $wave): string
+    {
+        return implode('-', array_map(static fn (TaskItem $task): string => $task->id, $wave));
     }
 
     /**
@@ -699,17 +770,28 @@ final class Workflow
         return is_string($encoded) ? $encoded : '[]';
     }
 
-    private function taskContext(TaskItem $task): string
+    /**
+     * @param  list<TaskItem>  $wave
+     */
+    private function waveContext(array $wave): string
     {
         $dir = $this->load()->featureDir;
         $plan = $this->root.'/'.$dir.'/plan.md';
         $parts = [
             $this->read($this->root.'/.specify/memory/constitution.md'),
             $this->read($this->root.'/'.$dir.'/spec.md'),
-            $this->storyExcerpt($dir, $task->story),
             is_file($plan) ? $this->read($plan) : '',
-            $task->source,
         ];
+        $stories = [];
+        foreach ($wave as $task) {
+            $story = $this->storyExcerpt($dir, $task->story);
+            if ($story !== '' && ! in_array($story, $stories, true)) {
+                $stories[] = $story;
+                $parts[] = $story;
+            }
+
+            $parts[] = $task->source;
+        }
 
         return trim(implode("\n\n", array_filter($parts, static fn (string $part): bool => $part !== '')));
     }

@@ -91,6 +91,52 @@ final class TaskBoard
         return $ordered;
     }
 
+    /**
+     * @param  list<TaskItem>  $ordered
+     * @return list<TaskItem>
+     */
+    public static function wave(array $ordered, int $limit): array
+    {
+        $done = [];
+        foreach ($ordered as $task) {
+            if ($task->done) {
+                $done[$task->id] = true;
+            }
+        }
+
+        $wave = [];
+        $chosen = [];
+        foreach ($ordered as $task) {
+            if ($task->done || count($wave) >= $limit) {
+                continue;
+            }
+
+            if (! self::readyForWave($task, $done, $chosen)) {
+                continue;
+            }
+
+            $wave[] = $task;
+            $chosen[$task->id] = true;
+        }
+
+        return $wave;
+    }
+
+    /**
+     * @param  array<string, true>  $done
+     * @param  array<string, true>  $chosen
+     */
+    private static function readyForWave(TaskItem $task, array $done, array $chosen): bool
+    {
+        foreach ($task->dependsOn as $dependency) {
+            if (! isset($done[$dependency]) && ! isset($chosen[$dependency])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static function parseLine(string $line, string $phase): ?TaskItem
     {
         if (preg_match('/^- \[(?<mark>[ xX])\] (?<id>T\d+)\b(?<rest>.*)$/', $line, $match) !== 1) {

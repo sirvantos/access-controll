@@ -60,6 +60,24 @@ it('rejects a dependency in a later phase', function () {
     MD)))->toThrow(RuntimeException::class, 'later phase');
 });
 
+it('fills a wave with a dependency chain and stops at the limit', function () {
+    $ordered = TaskBoard::order(TaskBoard::parse(<<<'MD'
+    ## Phase 1: Setup
+
+    - [x] T001 Done
+    - [ ] T002 Second (depends on T001)
+    - [ ] T003 Third (depends on T002)
+    - [ ] T004 Fourth (depends on T003)
+    - [ ] T005 Fifth (depends on T004)
+    - [ ] T006 Sixth (depends on T005)
+    - [ ] T007 Seventh
+    MD));
+
+    $ids = array_map(static fn ($task): string => $task->id, TaskBoard::wave($ordered, 5));
+
+    expect($ids)->toBe(['T002', 'T003', 'T004', 'T005', 'T006']);
+});
+
 it('marks one checkbox without rewriting the rest of the line', function () {
     $markdown = "- [ ] T001 First\n- [ ] T002 Second\n";
     $updated = TaskBoard::markDone($markdown, 'T001');

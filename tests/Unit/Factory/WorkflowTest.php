@@ -859,6 +859,67 @@ it('gives the next implementer attempt the assumptions that blocked approval', f
     }
 });
 
+it('implements five tasks in one wave and leaves the sixth for the next', function () {
+    $root = factoryRoot();
+
+    try {
+        $implementPrompts = [];
+        $agent = factoryAgent(function (string $cwd, string $prompt) use (&$implementPrompts): string {
+            $dir = 'specs/001-demo';
+            if (str_contains($prompt, 'IMPLEMENT_TASK')) {
+                $implementPrompts[] = $prompt;
+                file_put_contents($cwd.'/recorded.txt', "pass\n");
+
+                return '{"status":"done","summary":"recorded","assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'QUALITY_REVIEW') || str_contains($prompt, 'FUNCTIONAL_REVIEW')) {
+                return '{"verdict":"approve","issues":[],"scenarios":[{"id":"1","result":"pass"}]}';
+            }
+
+            if (str_contains($prompt, 'speckit-analyze')) {
+                return '{"verdict":"approve","issues":[],"assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'speckit-specify')) {
+                file_put_contents($cwd.'/'.$dir.'/spec.md', "User Story 1\n\nA pass is recorded.\n");
+            }
+
+            if (str_contains($prompt, 'speckit-plan')) {
+                file_put_contents($cwd.'/'.$dir.'/plan.md', "plan\n");
+            }
+
+            if (str_contains($prompt, 'speckit-tasks')) {
+                file_put_contents($cwd.'/'.$dir.'/tasks.md', <<<'MD'
+                ## Phase 1: Setup
+
+                - [ ] T001 Record a pass
+                - [ ] T002 Record a pass (depends on T001)
+                - [ ] T003 Record a pass (depends on T002)
+                - [ ] T004 Record a pass (depends on T003)
+                - [ ] T005 Record a pass (depends on T004)
+                - [ ] T006 Record a pass (depends on T005)
+                MD);
+            }
+
+            return '{"status":"done","summary":"ok","assumptions":[]}';
+        });
+
+        factoryWorkflow($root, $agent)->start('Record a gate pass');
+
+        $tasks = (string) file_get_contents($root.'/specs/001-demo/tasks.md');
+        expect($implementPrompts)->toHaveCount(2)
+            ->and($implementPrompts[0])->toContain('T001')
+            ->and($implementPrompts[0])->toContain('T005')
+            ->and($implementPrompts[0])->not->toContain('T006')
+            ->and($implementPrompts[1])->toContain('T006')
+            ->and($tasks)->toContain('- [x] T001')
+            ->and($tasks)->toContain('- [x] T006');
+    } finally {
+        factoryRemove($root);
+    }
+});
+
 function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $scaffolder = null, int $retries = 0, string $verify = 'true'): Workflow
 {
     return new Workflow(
