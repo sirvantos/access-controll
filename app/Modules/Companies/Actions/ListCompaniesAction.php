@@ -10,12 +10,13 @@ use App\Modules\Identity\PublicApi\FirstAdminInvitations;
 use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 use LogicException;
+use Throwable;
 
 final class ListCompaniesAction
 {
     public const int COMPANY_LIST_PAGE_SIZE = 15;
 
-    public function __construct(private FirstAdminInvitations $firstAdminInvitations) {}
+    public function __construct(private readonly FirstAdminInvitations $firstAdminInvitations) {}
 
     /**
      * @return LengthAwarePaginator<int, CompanySummary>
@@ -44,6 +45,8 @@ final class ListCompaniesAction
 
     /**
      * @param  list<int>  $awaitingIds
+     *
+     * @throws Throwable
      */
     private function summary(Company $company, array $awaitingIds): CompanySummary
     {

@@ -11,11 +11,15 @@ use App\Modules\Identity\PublicApi\FirstAdminInvitations;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use LogicException;
+use Throwable;
 
-final class DeactivateCompanyAction
+final readonly class DeactivateCompanyAction
 {
     public function __construct(private FirstAdminInvitations $firstAdminInvitations) {}
 
+    /**
+     * @throws Throwable
+     */
     public function __invoke(int $companyId): CompanySummary
     {
         $company = DB::transaction(fn (): Company => $this->deactivate($companyId));
@@ -38,6 +42,9 @@ final class DeactivateCompanyAction
         return $company;
     }
 
+    /**
+     * @throws Throwable
+     */
     private function summary(Company $company): CompanySummary
     {
         $createdAt = $company->created_at;

@@ -16,6 +16,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
+use SensitiveParameter;
 
 #[Fillable(['email', 'password', 'role', 'company_id', 'deactivated_at', 'session_version', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
@@ -45,7 +46,7 @@ class User extends Authenticatable implements Actor
         return $this->session_version;
     }
 
-    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    public function sendPasswordResetNotification(#[SensitiveParameter] $token): void
     {
         $this->notify(new ResetPasswordNotification($token));
     }
