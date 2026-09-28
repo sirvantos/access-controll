@@ -33,7 +33,7 @@ The link is valid through 2030-01-15. Running `db:seed` again leaves these rows 
 
 - **Node** — requires `^20.19.0` or `>=22.12.0` before the frontend steps.
 - **fmt** — `pint --test` for PHP and `prettier --check` for Vue and TypeScript. Checks formatting and does not rewrite files.
-- **lint** — Larastan at level 8, then deptrac for the layer rules (`Http`, `Health`, `HealthPublicApi`).
+- **lint** — Larastan at level 8, then deptrac. Layers are `Http`, `Support`, `Exceptions`, `Rules`, `Providers`, and each directory under `app/Modules` together with its `PublicApi`.
 - **build** — `vue-tsc --noEmit`, then the Vite production build.
 - **test** — Pest through the HTTP stack, then Vitest for the Vue component.
 
