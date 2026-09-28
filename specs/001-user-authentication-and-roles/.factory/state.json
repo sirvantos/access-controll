@@ -2,14 +2,312 @@
     "feature_dir": "specs/001-user-authentication-and-roles",
     "branch": "001-user-authentication-and-roles",
     "description": "User authentication and roles for a CRM service for access control and time tracking.\n\nThe service serves multiple companies. It stores employees with face photos, receives entry/exit events from face recognition terminals, and calculates hours worked. This is personal and biometric data, so only authenticated users may access it, and only within the limits of their role.\n\nUsers sign in with email and password. There are three roles:\n- Super admin: the service owner. Manages all companies and creates the first administrator for each company. The first super admin is created by a console command during installation. Super admins cannot be created through the UI.\n- Company admin: manages their own company, including employees, photos, terminals, settings, and the company's users.\n- Viewer: read-only access to their own company's events, timesheets, and reports.\n\nEvery user except the super admin belongs to exactly one company. New users are added by email invitation and set their own password. The service needs password recovery, user deactivation (users are never deleted), and protection against password guessing. A company must always have at least one active admin. Users of a deactivated company cannot sign in.\n\nEmployees who pass through the terminal are not CRM users.\n\nOut of scope for now: two-factor authentication, Google/SSO sign-in, self-registration, custom roles.",
-    "next": "analyze",
+    "next": "done",
     "stop": null,
-    "lock": {
-        "pid": 24833,
-        "at": "2026-09-27T13:50:53+00:00"
-    },
+    "lock": null,
     "converge_rounds": 0,
-    "tasks": [],
+    "tasks": {
+        "T001": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "a0a2cf46-d030-4e68-adbc-6eeca4e87b7f",
+            "spec_hash": "3d7dfd08fefcf377c47bafc112849882bda27017bdcf48e2e085862f339e3322"
+        },
+        "T002": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "f3e478cd-c7f9-44a6-be69-b5bc58550890",
+            "spec_hash": "38fc71543cf3bd6a4f6c68a3ea5a8387af5f22afe59b2f4e137eeee424d22d48"
+        },
+        "T003": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "368cc737-606f-49ec-a80c-8f245b753564",
+            "spec_hash": "0489f1d5bb551d41654bb9391b8bf69f28152bb09955481baf7003e98050c9fb"
+        },
+        "T004": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "d114d2e9-3285-4831-a2db-718139a53faf",
+            "spec_hash": "cbb6ee58dcb5949f4a0c4e87d543fa5ba63d532321ac2a48b748cd3d469df474"
+        },
+        "T005": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "4f388a21-87f6-4a6f-ae81-5bda19f09ee5",
+            "spec_hash": "37d392e83c9333f6b620517272622dd9289b03aecdff2fbcaeb5fd2245767db9"
+        },
+        "T006": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "84c088a9-a04b-48a0-a83a-6730e3b4f6f1",
+            "spec_hash": "93f1ee0b67688118d8ffd8c24c2395b1f07bffd87d08152d90c0dbe48c9205c9"
+        },
+        "T007": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "b3129d0d-6aab-4a55-805d-b033fa689737",
+            "spec_hash": "9b51d68d803e4e9eaaa7e883795b6e975722afdbab031c5f77f2cc8af9172e44"
+        },
+        "T008": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "b3129d0d-6aab-4a55-805d-b033fa689737",
+            "spec_hash": "178bc7a1f70bfaf316b53e85b253e182081462fd8a843a11f3f2c5a469c3e856"
+        },
+        "T009": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "b3129d0d-6aab-4a55-805d-b033fa689737",
+            "spec_hash": "9200eb822566e07075f37c555137f7c1fc213b808454bf67f434275713c8013b"
+        },
+        "T010": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "b3129d0d-6aab-4a55-805d-b033fa689737",
+            "spec_hash": "629937d9e9a7e4ddebf3771546420f4b1247a85dc7fb7e14ca33c62bb4812b96"
+        },
+        "T011": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "b3129d0d-6aab-4a55-805d-b033fa689737",
+            "spec_hash": "4e404bb71863b335ad3788bf8a81bf22d7c3a3c59c623843fc23151a87c30823"
+        },
+        "T012": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "9906f0d8-5511-47f1-bd91-d67b67ddf11c",
+            "spec_hash": "dcf422bb35a74535e9c4db6cf1f8dc127d0f2cd7c1f5a1a4b5d06cb1cf7506d5"
+        },
+        "T013": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "9906f0d8-5511-47f1-bd91-d67b67ddf11c",
+            "spec_hash": "4e979b3aa9afcc7fb4fd405bc534194bda7e130629acd14912a4a50c8b90c954"
+        },
+        "T014": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "9906f0d8-5511-47f1-bd91-d67b67ddf11c",
+            "spec_hash": "5bc1031936358dc3e0f111691779e5d4665623fd07c9b8b4c656e3dbc16e6d37"
+        },
+        "T015": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "9906f0d8-5511-47f1-bd91-d67b67ddf11c",
+            "spec_hash": "fbdfc912e3e299b316a6b3c1723fecde85832cb0ab06ddc09261ccc4c6c3d63e"
+        },
+        "T016": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "9906f0d8-5511-47f1-bd91-d67b67ddf11c",
+            "spec_hash": "3c2ec3786fa6fd235e92c9455bb9c16e5d741e193050035bce89fa6e4dcf3ab1"
+        },
+        "T017": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "944aa491-55af-46e6-8874-bffb2e93b3cc",
+            "spec_hash": "44749132596be8ac4b8c452c5c3665f9b72babcf440d0f5490cdf503d70d5146"
+        },
+        "T018": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "944aa491-55af-46e6-8874-bffb2e93b3cc",
+            "spec_hash": "62924f2f6cbda098226658ee7bcc451da735b0b266cefaffed6c1f32e762656f"
+        },
+        "T019": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "944aa491-55af-46e6-8874-bffb2e93b3cc",
+            "spec_hash": "496048ca531d140c64b9c3df11960c79aede3d90bc5518d2369c90bd1911f75b"
+        },
+        "T020": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "944aa491-55af-46e6-8874-bffb2e93b3cc",
+            "spec_hash": "e087b52a868b79fbb49611c7a9634759e27535a82cacbe13940dec8d9e9db16e"
+        },
+        "T021": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "944aa491-55af-46e6-8874-bffb2e93b3cc",
+            "spec_hash": "6ea2a2229e2fd67c0ec7c1897084401fe37958b13db20520213772e58305bd13"
+        },
+        "T022": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "16f9c02d-6fed-4c49-a35c-ee009e061aa6",
+            "spec_hash": "292a4576fea899940a43c0fc4fd5f5a0dbc34c96c6fe7ddb8236bcaad8982bb7"
+        },
+        "T023": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "16f9c02d-6fed-4c49-a35c-ee009e061aa6",
+            "spec_hash": "a4df41fca55c9e3589ebbc777022a11d549a9b92fc4545ca4d63291c90031d6f"
+        },
+        "T024": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "16f9c02d-6fed-4c49-a35c-ee009e061aa6",
+            "spec_hash": "6fbb7959f910823858c357981a28469f884cd2dd20e67b2a336f9cca70174eac"
+        },
+        "T025": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "16f9c02d-6fed-4c49-a35c-ee009e061aa6",
+            "spec_hash": "b8656c715cf49ca4b77542a75c6c0e5aeafee45728905302219c48e7bfa388f4"
+        },
+        "T026": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "16f9c02d-6fed-4c49-a35c-ee009e061aa6",
+            "spec_hash": "6cb5f047845703dc08e9d1093660e1b425563002e74978f1c41f88c20e7f65f7"
+        },
+        "T027": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "8669e3e6-d992-46ce-8797-92160fd0a2da",
+            "spec_hash": "12c82b5169cc0ac10a44bc61dec4ec6439902954aed7deca204163fc4b41ea7a"
+        },
+        "T028": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "8669e3e6-d992-46ce-8797-92160fd0a2da",
+            "spec_hash": "a8bcf44da450d9d259d07580ea638d169deee4034699b4678b94371664f70313"
+        },
+        "T029": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "8669e3e6-d992-46ce-8797-92160fd0a2da",
+            "spec_hash": "aae18149dba9d57ede790b72266415f4bdd4548f805e0384024197e31257ac3f"
+        },
+        "T030": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "8669e3e6-d992-46ce-8797-92160fd0a2da",
+            "spec_hash": "d55dceca9c5d3432d8e701ef60908e310701852094269784dd6b825d38d7239f"
+        },
+        "T031": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "8669e3e6-d992-46ce-8797-92160fd0a2da",
+            "spec_hash": "c40934d564dc28aa19a99ba4f0b7b41cd2530742952b7de47e851871334de459"
+        },
+        "T032": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "cf582bd6-a85f-4807-b6f0-4fe18b158ec4",
+            "spec_hash": "1547480322dc2ca9cce3d8ec1ccc6d45a657e2f487320cc073fddeca21c8a75d"
+        },
+        "T033": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "cf582bd6-a85f-4807-b6f0-4fe18b158ec4",
+            "spec_hash": "ef36f625db6b7cc7b8e3a118a4aa27566117c296a132a53d37e1c23800b7209d"
+        },
+        "T034": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "cf582bd6-a85f-4807-b6f0-4fe18b158ec4",
+            "spec_hash": "bd9cf5468b67692085f87189fef5b2cefde38c9220dcd3c3a8e8f0d342eb81ff"
+        },
+        "T035": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "cf582bd6-a85f-4807-b6f0-4fe18b158ec4",
+            "spec_hash": "58196d7c4f4301dc7af8a9385eed871c9d1de673dc65b9b7e249b02608efe84e"
+        },
+        "T036": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "cf582bd6-a85f-4807-b6f0-4fe18b158ec4",
+            "spec_hash": "79a4d5773687a684fe6f509f99df504d72c6a55b4dc45698e2eb29738fe5b358"
+        },
+        "T037": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "ae909e6b-422c-45c7-816c-629410b60834",
+            "spec_hash": "73a44b530ca8fd140b73224f392c53618388c632a2928a3b65c3b40639aa2c4c"
+        },
+        "T038": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "ae909e6b-422c-45c7-816c-629410b60834",
+            "spec_hash": "a3714b013090d99015490e9536c8c2feccf4f57729b971d0acdc2248579f7519"
+        },
+        "T039": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "ae909e6b-422c-45c7-816c-629410b60834",
+            "spec_hash": "4629a3ea8e5cd63f894f15e977175826005ef19a85dd2100e579f29baf348079"
+        },
+        "T040": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "ae909e6b-422c-45c7-816c-629410b60834",
+            "spec_hash": "affa04c2894674f82098e48ef6b0c11c8057c6bfc4ec6061c5deda8183f168a0"
+        },
+        "T041": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "ae909e6b-422c-45c7-816c-629410b60834",
+            "spec_hash": "ea66f6af6b156710d74a794a7c3414abe0c58d7d397c0d2a9dca37acd32fd918"
+        },
+        "T042": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "1e937395-4ce4-4901-97cf-d88b9f24f798",
+            "spec_hash": "36a4d2a7e5eaea90dab55b61795a20e040278fc80df2aef3f5b46bbab942a464"
+        },
+        "T043": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "1e937395-4ce4-4901-97cf-d88b9f24f798",
+            "spec_hash": "7f84ff596ec9d44bce3106f0df578453b92348f7576c9582dbe2b2c324018763"
+        },
+        "T044": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "1e937395-4ce4-4901-97cf-d88b9f24f798",
+            "spec_hash": "44da396214b923a07284c17954f0c1ab0a98e44708ad11e30524761c08f0a958"
+        },
+        "T045": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "1e937395-4ce4-4901-97cf-d88b9f24f798",
+            "spec_hash": "2ea7d88af87028c6644c567a1ecf00acfdd3a39c114c175513b7d59d1bea41ea"
+        },
+        "T046": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "1e937395-4ce4-4901-97cf-d88b9f24f798",
+            "spec_hash": "a782b3a8e6ea4199c2bcf2e32cbc0b82be0e5013df6d9c42661ed08feea7694f"
+        },
+        "T047": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "d63a53b2-d7e8-479e-8399-2330476a6681",
+            "spec_hash": "f0fdb39b0131cfb8837d275f209e8e1a3ad6eacee1cfcd7fa0873a2d606ee33f"
+        },
+        "T048": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "d63a53b2-d7e8-479e-8399-2330476a6681",
+            "spec_hash": "d25fa40f378cb6623c3776793c5a70478b7f6d9d5c6cf7b9abc0ff81f43c11b0"
+        },
+        "T049": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "d63a53b2-d7e8-479e-8399-2330476a6681",
+            "spec_hash": "cd9e42463fd94a51ed68afa7eb678eb9bc3eaa50e5d3e2ae3c29efc64bb4844c"
+        },
+        "T050": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "d63a53b2-d7e8-479e-8399-2330476a6681",
+            "spec_hash": "e88bd237eb5d9b484b9bb5f73c77d458519f7c2e3b44f03bfaa8334f7db104f6"
+        }
+    },
     "author_chat_id": "c28d0d32-1a8e-4603-8f8d-4b227c3a0446",
     "author_model": "composer-2.5"
 }
