@@ -139,3 +139,9 @@ Models set in the contract:
 - **reviewer** — `grok-4.7-high`, used for analyze, both reviews, and converge
 
 `reviewer` is a different model family from the implementer.
+
+### Later: run without the laptop
+
+Not built. The idea is to run `php factory/orchestrate.php` on a Cursor cloud machine, so a closed laptop does not stop the happy path. The cloud agent is only the machine. The orchestrator still calls `cursor-agent`, worktrees, and `make verify`.
+
+A remote run still stops for a person on `unresolved_questions`, `analyze_failure`, and `retries_exhausted`. Those stops are useful only if the machine leaves a durable handoff before it disappears: the feature branch pushed, `state.json` saved, and either `questions.md` or the reviewer feedback available to the next session. Today that state stays on the machine that ran the process (`state.json`, an uncommitted `questions.md`, `factory/draft`, and gitignored `factory/runs/`). A new cloud session cannot `resume` without it.
