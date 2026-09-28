@@ -1,5 +1,32 @@
 # access-controll
 
+## Manual testing
+
+Load the sample companies and users:
+
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+Every account below uses the password `password`. Sign in at `/sign-in`.
+
+| Role | Email | Company | After sign-in |
+| --- | --- | --- | --- |
+| Super admin | `owner@example.com` | — | `/companies` |
+| Company admin | `admin@acme.test` | Acme | `/company/users` |
+| Viewer | `viewer@acme.test` | Acme | `/` |
+| Company admin | `admin@globex.test` | Globex | `/company/users` |
+| Viewer | `viewer@globex.test` | Globex | `/` |
+
+Acme also has a pending viewer invitation for `invitee@acme.test`. Open:
+
+```text
+/invitation/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+The link is valid through 2030-01-15. Running `db:seed` again leaves these rows in place.
+
 ## Verify
 
 `make verify` is green when it exits 0. It runs these guards in order and stops on the first failure:
