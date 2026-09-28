@@ -18,7 +18,7 @@ feature_directory_key: feature_directory
 
 models:
   spec_author: claude-opus-5-5-medium
-  spec_editor: grok-4.6-high
+  spec_editor: cursor-grok-4.6-high
   implementer: grok-4.7-medium
   reviewer: composer-2.5
 

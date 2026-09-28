@@ -68,7 +68,9 @@ The short name is up to four ASCII words from the start of the brief. Begin the 
 
 `run` starts from the git branch that is checked out. It allocates the next `specs/NNN-short-name/` directory, writes the spec template, and records the directory in `.specify/feature.json`. That short name is the feature branch. `feature.json` stays on this checkout: Spec Kit gitignores it, and the orchestrator copies it into each worktree so the agent can read the active directory.
 
-If that feature already has `specs/<feature>/.factory/state.json`, `run` stops and `resume` is the way to continue.
+If that feature already has `specs/<feature>/.factory/state.json` and the run is not finished (`next` is not `done`), `run` stops and `resume` is the way to continue. After `done`, another `run -i …` starts the next feature directory.
+
+Author agents run with `cursor-agent --force`, so CLI deny rules are not a hard block. After each author, implementer, or converge step, the orchestrator reverts any change under protected paths (for example `factory/**`) and keeps allowed spec files. A stray edit to `factory/factory.yaml` no longer discards the whole plan worktree.
 
 ### What `run` does
 

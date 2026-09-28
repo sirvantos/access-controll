@@ -573,6 +573,82 @@ it('continues a scaffold whose feature pointer is gitignored', function () {
     }
 });
 
+it('starts the next feature when the active pointer is done', function () {
+    $root = factoryRoot();
+
+    try {
+        $dir = 'specs/001-demo';
+        mkdir($root.'/'.$dir.'/.factory', 0777, true);
+        file_put_contents($root.'/'.$dir.'/spec.md', "User Story 1\n\nDone feature.\n");
+        file_put_contents($root.'/'.$dir.'/.factory/state.json', json_encode([
+            'feature_dir' => $dir,
+            'branch' => '001-demo',
+            'description' => 'Done feature.',
+            'next' => 'done',
+            'stop' => null,
+            'lock' => null,
+            'converge_rounds' => 0,
+            'tasks' => [],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/.specify/feature.json', json_encode(['feature_directory' => $dir], JSON_THROW_ON_ERROR)."\n");
+
+        $created = null;
+        $scaffolder = new class($created) implements FeatureScaffolder
+        {
+            public function __construct(private mixed &$created) {}
+
+            public function create(string $root, string $description): array
+            {
+                $this->created = ['branch' => '002-companies', 'dir' => 'specs/002-companies'];
+                mkdir($root.'/specs/002-companies', 0777, true);
+                file_put_contents($root.'/specs/002-companies/spec.md', "template\n");
+
+                return $this->created;
+            }
+        };
+
+        $agent = factoryAgent(fn (): string => '{"status":"spec_gap","summary":"Need detail","assumptions":[]}');
+
+        factoryWorkflow($root, $agent, $scaffolder)->start('Company management for a CRM');
+
+        expect($created)->toBe(['branch' => '002-companies', 'dir' => 'specs/002-companies'])
+            ->and(is_file($root.'/specs/002-companies/.factory/state.json'))->toBeTrue()
+            ->and(json_decode((string) file_get_contents($root.'/specs/002-companies/.factory/state.json'), true)['feature_dir'] ?? null)
+            ->toBe('specs/002-companies');
+    } finally {
+        factoryRemove($root);
+    }
+});
+
+it('blocks a second run while the active feature is still in progress', function () {
+    $root = factoryRoot();
+
+    try {
+        $dir = 'specs/001-demo';
+        mkdir($root.'/'.$dir.'/.factory', 0777, true);
+        file_put_contents($root.'/'.$dir.'/spec.md', "User Story 1\n\nIn progress.\n");
+        file_put_contents($root.'/'.$dir.'/.factory/state.json', json_encode([
+            'feature_dir' => $dir,
+            'branch' => '001-demo',
+            'description' => 'In progress.',
+            'next' => 'implement',
+            'stop' => null,
+            'lock' => null,
+            'converge_rounds' => 0,
+            'tasks' => [],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/.specify/feature.json', json_encode(['feature_directory' => $dir], JSON_THROW_ON_ERROR)."\n");
+
+        expect(fn () => factoryWorkflow($root, factoryAgent(fn (): string => '{"status":"done","summary":"ok","assumptions":[]}'))
+            ->start('Another brief'))
+            ->toThrow(function (FactoryStop $stop): bool {
+                return $stop->reason === 'already_started';
+            });
+    } finally {
+        factoryRemove($root);
+    }
+});
+
 it('links node modules and the env file without installing vendor', function () {
     $root = factoryRoot();
 

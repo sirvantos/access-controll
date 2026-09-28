@@ -27,12 +27,16 @@ final class Workflow
 
     public function start(string $description): void
     {
-        if ($this->statePath() !== null && is_file($this->statePath())) {
+        if ($this->activeFactoryRunBlocksStart()) {
             throw new FactoryStop('already_started', 'This feature already has factory state. Use resume.');
         }
 
         $existing = $this->featureDir();
-        if ($existing !== '' && is_file($this->root.'/'.$existing.'/spec.md')) {
+        if (
+            $existing !== ''
+            && is_file($this->root.'/'.$existing.'/spec.md')
+            && ! $this->featureDirIsFinished($existing)
+        ) {
             $created = ['branch' => basename($existing), 'dir' => $existing];
             $this->note('continue scaffold '.$existing);
         } else {
@@ -837,6 +841,7 @@ final class Workflow
         return <<<PROMPT
         Follow .cursor/skills/{$skill}/SKILL.md for {$state->featureDir}.
         The feature directory and branch already exist. Do not run git. Do not run Speckit git hooks.
+        Do not create, edit, delete, or rename files under factory/, .cursor/, .specify/, .github/, Makefile, phpstan.neon, deptrac.php, or phpunit.xml.
         Feature description: {$state->description}
         If you need a human answer, append the question to {$questions} and finish with status spec_gap.
         Do not invent missing requirements.
@@ -951,10 +956,26 @@ final class Workflow
 
     private function assertCleanRole(string $role, string $featureDir, string $worktree): void
     {
+        $this->dropProtectedChanges($role, $featureDir, $worktree);
+
         $violations = DiffGuard::violations($role, $featureDir, $this->git->changedFiles($worktree));
         if ($violations !== []) {
             throw new FactoryStop('protected_path', 'Forbidden changes: '.implode(', ', $violations));
         }
+    }
+
+    private function dropProtectedChanges(string $role, string $featureDir, string $worktree): void
+    {
+        $violations = DiffGuard::violations($role, $featureDir, $this->git->changedFiles($worktree));
+        if ($violations === []) {
+            return;
+        }
+
+        foreach ($violations as $path) {
+            $this->git->restore($worktree, $path);
+        }
+
+        $this->note('reverted protected '.implode(', ', $violations));
     }
 
     private function keepDraft(string $worktree, string $branch, string $message): void
@@ -1185,6 +1206,31 @@ final class Workflow
             throw new FactoryStop('missing_state', 'No factory state. Start with run and a feature description.');
         }
 
+        return $this->readStateAt($path);
+    }
+
+    private function activeFactoryRunBlocksStart(): bool
+    {
+        $path = $this->statePath();
+        if ($path === null || ! is_file($path)) {
+            return false;
+        }
+
+        return $this->readStateAt($path)->next !== 'done';
+    }
+
+    private function featureDirIsFinished(string $featureDir): bool
+    {
+        $path = $this->root.'/'.$featureDir.'/.factory/state.json';
+        if (! is_file($path)) {
+            return false;
+        }
+
+        return $this->readStateAt($path)->next === 'done';
+    }
+
+    private function readStateAt(string $path): FactoryState
+    {
         $decoded = json_decode((string) file_get_contents($path), true);
         if (! is_array($decoded)) {
             throw new RuntimeException('Factory state is unreadable.');
