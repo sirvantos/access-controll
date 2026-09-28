@@ -2,13 +2,10 @@
     "feature_dir": "specs/002-company-management-for-a",
     "branch": "002-company-management-for-a",
     "description": "Company management for a CRM service for access control and time tracking.\n\nThe service serves multiple client companies. A company is the core unit of the service: it owns users, employees, face recognition terminals, entry/exit events, and reports.\n\nThe super admin creates companies, sees a searchable list of them, and can deactivate or reactivate a company. Companies are never deleted. Their data is kept when they are deactivated.\n\nA company has a name, a time zone (default Asia/Almaty), and optional details: business ID (BIN), contact person, phone, email. The time zone is needed to display entry/exit times correctly and to assign each event to the correct day.\n\nA company has working day settings used to calculate late arrivals and hours worked: start and end of the working day, working days of the week, break duration and whether it is deducted, and a lateness grace period in minutes. Defaults are 09:00\u201318:00, Monday\u2013Friday, 60-minute break. Changing the settings must not change calculations for past days.\n\nA company admin can edit the details and settings of their own company only. A viewer sees them read-only.\n\nOut of scope for now: night shifts, individual employee schedules, holiday calendar, branches within a company, pricing plans and billing.",
-    "next": "converge",
+    "next": "done",
     "stop": null,
-    "lock": {
-        "pid": 46202,
-        "at": "2026-09-28T17:08:41+00:00"
-    },
-    "converge_rounds": 0,
+    "lock": null,
+    "converge_rounds": 1,
     "tasks": {
         "T001": {
             "attempts": 3,
