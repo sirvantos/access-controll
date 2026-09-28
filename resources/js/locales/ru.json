@@ -1,0 +1,73 @@
+{
+    "app": {
+        "name": "Laravel"
+    },
+    "errors": {
+        "generic": "Не удалось выполнить запрос для {subject}."
+    },
+    "auth": {
+        "email": "Эл. почта",
+        "password": "Пароль",
+        "signIn": "Войти",
+        "signOut": "Выйти",
+        "forgotPassword": "Забыли пароль",
+        "sendResetLink": "Отправить ссылку",
+        "resetConfirmation": "Если сброс пароля возможен, ссылка отправлена.",
+        "newPassword": "Новый пароль",
+        "resetPassword": "Задать новый пароль",
+        "requestNewLink": "Запросить новую ссылку"
+    },
+    "home": {
+        "placeholder": "Вы вошли в сервис."
+    },
+    "companyUsers": {
+        "title": "Пользователи",
+        "email": "Эл. почта",
+        "role": "Роль",
+        "state": "Состояние",
+        "active": "Активен",
+        "deactivated": "Деактивирован",
+        "previous": "Назад",
+        "next": "Далее",
+        "invite": "Пригласить",
+        "invitations": "Ожидающие приглашения",
+        "expires": "Истекает",
+        "actions": "Действия",
+        "resend": "Отправить снова",
+        "revoke": "Отозвать",
+        "deactivate": "Деактивировать",
+        "reactivate": "Активировать",
+        "lastActiveAdmin": "В компании должен оставаться хотя бы один активный администратор."
+    },
+    "invitations": {
+        "noLongerValid": "Приглашение больше не действует.",
+        "accept": "Задать пароль"
+    },
+    "companies": {
+        "title": "Компании",
+        "name": "Название",
+        "firstAdminEmail": "Эл. почта первого администратора",
+        "create": "Создать компанию",
+        "state": "Состояние",
+        "active": "Активна",
+        "deactivated": "Деактивирована",
+        "firstAdminInvitations": "Приглашения первого администратора для {name}",
+        "replacementEmail": "Эл. почта замены",
+        "inviteReplacement": "Пригласить замену",
+        "email": "Эл. почта",
+        "role": "Роль",
+        "expires": "Истекает",
+        "actions": "Действия",
+        "resend": "Отправить снова",
+        "revoke": "Отозвать",
+        "deactivate": "Деактивировать",
+        "reactivate": "Активировать",
+        "previous": "Назад",
+        "next": "Далее"
+    },
+    "roles": {
+        "super_admin": "Суперадминистратор",
+        "company_admin": "Администратор компании",
+        "viewer": "Наблюдатель"
+    }
+}

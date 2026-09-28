@@ -1,0 +1,890 @@
+openapi: 3.1.0
+info:
+  title: User Authentication and Roles
+  version: v1
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: laravel-session
+      description: Sanctum SPA session cookie.
+    xsrfToken:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+      description: CSRF token read from the XSRF-TOKEN cookie.
+  schemas:
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    MessageWithErrorCode:
+      type: object
+      required: [message, error_code]
+      properties:
+        message:
+          type: string
+        error_code:
+          type: string
+    ValidationError:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    RateLimitError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    CurrentUser:
+      type: object
+      required: [id, email, role, company_id]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [super_admin, company_admin, viewer]
+        company_id:
+          type: ["integer", "null"]
+    CompanyUser:
+      type: object
+      required: [id, email, role, is_active]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [super_admin, company_admin, viewer]
+        is_active:
+          type: boolean
+    PendingInvitation:
+      type: object
+      required: [id, email, role, expires_at]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [company_admin, viewer]
+        expires_at:
+          type: string
+          format: date-time
+    InvitationPreview:
+      type: object
+      required: [email, role, expires_at]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [company_admin, viewer]
+        expires_at:
+          type: string
+          format: date-time
+    Company:
+      type: object
+      required: [id, name, is_active, awaiting_first_admin, created_at]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_active:
+          type: boolean
+        awaiting_first_admin:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    PaginationMeta:
+      type: object
+      required: [current_page, from, last_page, path, per_page, to, total]
+      properties:
+        current_page:
+          type: integer
+        from:
+          type: ["integer", "null"]
+        last_page:
+          type: integer
+        path:
+          type: string
+        per_page:
+          type: integer
+        to:
+          type: ["integer", "null"]
+        total:
+          type: integer
+  responses:
+    Unauthorized:
+      description: Missing or ended session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Message"
+          example:
+            message: Unauthenticated.
+    Forbidden:
+      description: The signed-in role is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Message"
+    NotFound:
+      description: The record was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Message"
+    MethodNotAllowed:
+      description: The HTTP method is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Message"
+    Conflict:
+      description: The current state does not allow the action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageWithErrorCode"
+    Gone:
+      description: The link or invitation is no longer valid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageWithErrorCode"
+    PageExpired:
+      description: The CSRF token is missing or stale.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Message"
+    UnprocessableEntity:
+      description: The request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    TooManyRequests:
+      description: The client exceeded a rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RateLimitError"
+paths:
+  /auth/sign-in:
+    post:
+      summary: Sign in with email and password.
+      responses:
+        "200":
+          description: The user is signed in.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CurrentUser"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/forgot-password:
+    post:
+      summary: Request a password reset link.
+      responses:
+        "200":
+          description: The same confirmation for every email address.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /auth/reset-password:
+    post:
+      summary: Set a new password with a reset link.
+      responses:
+        "200":
+          description: The password was changed and existing sessions were ended.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /auth/sign-out:
+    post:
+      summary: End the current session.
+      responses:
+        "200":
+          description: The session has ended.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /me:
+    get:
+      summary: Show the signed-in user.
+      responses:
+        "200":
+          description: The signed-in user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    head:
+      summary: Show the signed-in user.
+      responses:
+        "200":
+          description: The signed-in user.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /company/users:
+    get:
+      summary: List users of the signed-in company admin's company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Active and deactivated users of the signed-in user's company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CompanyUser"
+                  links:
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: List users of the signed-in company admin's company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Active and deactivated users of the signed-in user's company.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /company/users/{user}:
+    patch:
+      summary: Change a user of the signed-in company admin's company between company admin and viewer.
+      parameters:
+        - in: path
+          name: user
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The user has the requested role.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CompanyUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /company/users/{user}/deactivate:
+    post:
+      summary: Deactivate a user of the signed-in company admin's company.
+      parameters:
+        - in: path
+          name: user
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The user is deactivated. Repeating the request changes nothing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CompanyUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /company/users/{user}/reactivate:
+    post:
+      summary: Reactivate a user of the signed-in company admin's company.
+      parameters:
+        - in: path
+          name: user
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The user is active again. Repeating the request changes nothing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CompanyUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /invitations/{token}:
+    get:
+      summary: Preview a pending invitation.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The invitation can still be accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/InvitationPreview"
+        "410":
+          $ref: "#/components/responses/Gone"
+    head:
+      summary: Preview a pending invitation.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The invitation can still be accepted.
+        "410":
+          $ref: "#/components/responses/Gone"
+  /invitations/{token}/accept:
+    post:
+      summary: Accept an invitation and set a password.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The account is active. The user is not signed in.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /company/invitations:
+    get:
+      summary: List pending invitations of the signed-in company admin's company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Pending invitations of the signed-in user's company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PendingInvitation"
+                  links:
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: List pending invitations of the signed-in company admin's company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Pending invitations of the signed-in user's company.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: Invite a user to the signed-in company admin's company.
+      responses:
+        "201":
+          description: The invitation was stored and the email was queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PendingInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /company/invitations/{invitation}/resend:
+    post:
+      summary: Rotate a pending invitation link and send a new email.
+      parameters:
+        - in: path
+          name: invitation
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The invitation has a new expiry and the previous link no longer works.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PendingInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /company/invitations/{invitation}/revoke:
+    post:
+      summary: Revoke a pending invitation.
+      parameters:
+        - in: path
+          name: invitation
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The invitation link no longer works.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/companies:
+    get:
+      summary: List every company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Companies with activation state and whether the first admin is still pending.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Company"
+                  links:
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: List every company.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Companies with activation state and whether the first admin is still pending.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: Create a company and invite its first company admin.
+      responses:
+        "201":
+          description: The company exists and the first-admin invitation was queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /admin/companies/{company}/deactivate:
+    post:
+      summary: Deactivate a company and end its users' sessions.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The company is deactivated. Repeating the request changes nothing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/companies/{company}/reactivate:
+    post:
+      summary: Reactivate a company so its active users can sign in.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The company is active. Repeating the request changes nothing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/companies/{company}/invitations:
+    get:
+      summary: List pending first-admin invitations while the company has no users.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Pending first-admin invitations for a company that still has no users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PendingInvitation"
+                  links:
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    head:
+      summary: List pending first-admin invitations while the company has no users.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Pending first-admin invitations for a company that still has no users.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      summary: Invite a replacement first company admin.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: A company admin invitation was stored and the email was queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PendingInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /admin/companies/{company}/invitations/{invitation}/resend:
+    post:
+      summary: Re-send a pending first-admin invitation.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: invitation
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The invitation has a new expiry and the previous link no longer works.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PendingInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /admin/companies/{company}/invitations/{invitation}/revoke:
+    post:
+      summary: Revoke a pending first-admin invitation.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: invitation
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The invitation link no longer works.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /{fallbackPlaceholder}:
+    get:
+      summary: Unknown API route.
+      responses:
+        "404":
+          $ref: "#/components/responses/NotFound"
+    head:
+      summary: Unknown API route.
+      responses:
+        "404":
+          $ref: "#/components/responses/NotFound"

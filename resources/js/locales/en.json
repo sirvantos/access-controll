@@ -1,0 +1,73 @@
+{
+    "app": {
+        "name": "Laravel"
+    },
+    "errors": {
+        "generic": "Could not complete the request for {subject}."
+    },
+    "auth": {
+        "email": "Email",
+        "password": "Password",
+        "signIn": "Sign in",
+        "signOut": "Sign out",
+        "forgotPassword": "Forgot password",
+        "sendResetLink": "Send reset link",
+        "resetConfirmation": "If an account can be reset, a link has been sent.",
+        "newPassword": "New password",
+        "resetPassword": "Set a new password",
+        "requestNewLink": "Request a new link"
+    },
+    "home": {
+        "placeholder": "You are signed in."
+    },
+    "companyUsers": {
+        "title": "Users",
+        "email": "Email",
+        "role": "Role",
+        "state": "State",
+        "active": "Active",
+        "deactivated": "Deactivated",
+        "previous": "Previous",
+        "next": "Next",
+        "invite": "Invite",
+        "invitations": "Pending invitations",
+        "expires": "Expires",
+        "actions": "Actions",
+        "resend": "Re-send",
+        "revoke": "Revoke",
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "lastActiveAdmin": "The company must keep at least one active admin."
+    },
+    "invitations": {
+        "noLongerValid": "The invitation is no longer valid.",
+        "accept": "Set password"
+    },
+    "companies": {
+        "title": "Companies",
+        "name": "Name",
+        "firstAdminEmail": "First admin email",
+        "create": "Create company",
+        "state": "State",
+        "active": "Active",
+        "deactivated": "Deactivated",
+        "firstAdminInvitations": "First admin invitations for {name}",
+        "replacementEmail": "Replacement email",
+        "inviteReplacement": "Invite replacement",
+        "email": "Email",
+        "role": "Role",
+        "expires": "Expires",
+        "actions": "Actions",
+        "resend": "Re-send",
+        "revoke": "Revoke",
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "previous": "Previous",
+        "next": "Next"
+    },
+    "roles": {
+        "super_admin": "Super admin",
+        "company_admin": "Company admin",
+        "viewer": "Viewer"
+    }
+}
