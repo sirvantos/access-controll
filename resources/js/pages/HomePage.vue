@@ -10,7 +10,7 @@ const { currentUser } = useCurrentUser();
 onMounted(() => {
     const role = currentUser.value?.role;
 
-    if (role === 'super_admin') {
+    if (role === 'super_admin' && router.options.history.state.deniedRole !== true) {
         void router.replace('/companies');
 
         return;

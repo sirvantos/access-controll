@@ -113,12 +113,14 @@ components:
           format: date-time
     Company:
       type: object
-      required: [id, name, is_active, awaiting_first_admin, created_at]
+      required: [id, name, bin, is_active, awaiting_first_admin, created_at]
       properties:
         id:
           type: integer
         name:
           type: string
+        bin:
+          type: ["string", "null"]
         is_active:
           type: boolean
         awaiting_first_admin:
@@ -126,6 +128,97 @@ components:
         created_at:
           type: string
           format: date-time
+    CompanyProfile:
+      type: object
+      required: [id, name, time_zone, bin, contact_person, phone, email]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        time_zone:
+          type: string
+        bin:
+          type: ["string", "null"]
+        contact_person:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+    WorkingDaySettings:
+      type: object
+      required:
+        - start_time
+        - end_time
+        - working_days
+        - break_duration_minutes
+        - break_deducted
+        - lateness_grace_minutes
+      properties:
+        start_time:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+        end_time:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+        working_days:
+          type: array
+          items:
+            type: string
+            enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        break_duration_minutes:
+          type: integer
+        break_deducted:
+          type: boolean
+        lateness_grace_minutes:
+          type: integer
+    CreatedCompany:
+      type: object
+      required:
+        - id
+        - name
+        - time_zone
+        - bin
+        - contact_person
+        - phone
+        - email
+        - is_active
+        - awaiting_first_admin
+        - created_at
+        - working_day_settings
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        time_zone:
+          type: string
+        bin:
+          type: ["string", "null"]
+        contact_person:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        awaiting_first_admin:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        working_day_settings:
+          $ref: "#/components/schemas/WorkingDaySettings"
+    TimeZoneIdentifiers:
+      type: object
+      required: [identifiers]
+      properties:
+        identifiers:
+          type: array
+          items:
+            type: string
     PaginationMeta:
       type: object
       required: [current_page, from, last_page, path, per_page, to, total]
@@ -606,6 +699,165 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /time-zones:
+    get:
+      summary: List recognised IANA time zone identifiers.
+      responses:
+        "200":
+          description: Identifiers in DateTimeZone::listIdentifiers order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TimeZoneIdentifiers"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: List recognised IANA time zone identifiers.
+      responses:
+        "200":
+          description: Identifiers in DateTimeZone::listIdentifiers order.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /company/working-day-settings:
+    get:
+      summary: Read the signed-in company admin or viewer's current working day settings.
+      responses:
+        "200":
+          description: Latest saved working day settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WorkingDaySettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: Read the signed-in company admin or viewer's current working day settings.
+      responses:
+        "200":
+          description: Latest saved working day settings.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      summary: Replace the signed-in company admin's working day settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkingDaySettings"
+      responses:
+        "200":
+          description: Latest saved working day settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/WorkingDaySettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /company:
+    get:
+      summary: Read the signed-in company admin or viewer's own company profile.
+      responses:
+        "200":
+          description: Latest saved name, time zone, and optional details.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CompanyProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      summary: Update the signed-in company admin's own company profile.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                time_zone:
+                  type: string
+                bin:
+                  type: ["string", "null"]
+                contact_person:
+                  type: ["string", "null"]
+                  maxLength: 255
+                phone:
+                  type: ["string", "null"]
+                  maxLength: 32
+                email:
+                  type: ["string", "null"]
+                  format: email
+                  maxLength: 255
+      responses:
+        "200":
+          description: Latest saved name, time zone, and optional details.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CompanyProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      summary: Refuse deletion. Companies are never deleted.
+      responses:
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    head:
+      summary: Read the signed-in company admin or viewer's own company profile.
+      responses:
+        "200":
+          description: Latest saved name, time zone, and optional details.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /admin/companies:
     get:
       summary: List every company.
@@ -615,6 +867,12 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - in: query
+          name: search
+          description: Optional part of the company name or BIN. Matching ignores letter case and surrounding spaces and applies before pagination.
+          schema:
+            type: string
+            maxLength: 255
       responses:
         "200":
           description: Companies with activation state and whether the first admin is still pending.
@@ -636,6 +894,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
     head:
       summary: List every company.
       parameters:
@@ -644,6 +904,12 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - in: query
+          name: search
+          description: Optional part of the company name or BIN. Matching ignores letter case and surrounding spaces and applies before pagination.
+          schema:
+            type: string
+            maxLength: 255
       responses:
         "200":
           description: Companies with activation state and whether the first admin is still pending.
@@ -651,8 +917,40 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
     post:
       summary: Create a company and invite its first company admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, first_admin_email]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                first_admin_email:
+                  type: string
+                  format: email
+                time_zone:
+                  type: string
+                  default: Asia/Almaty
+                bin:
+                  type: string
+                contact_person:
+                  type: string
+                  maxLength: 255
+                phone:
+                  type: string
+                  maxLength: 32
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
       responses:
         "201":
           description: The company exists and the first-admin invitation was queued.
@@ -663,13 +961,29 @@ paths:
                 required: [data]
                 properties:
                   data:
-                    $ref: "#/components/schemas/Company"
+                    $ref: "#/components/schemas/CreatedCompany"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /admin/companies/{company}:
+    delete:
+      summary: Refuse deletion. Companies are never deleted.
+      parameters:
+        - in: path
+          name: company
+          required: true
+          schema:
+            type: integer
+      responses:
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /admin/companies/{company}/deactivate:
     post:
       summary: Deactivate a company and end its users' sessions.

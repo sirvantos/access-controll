@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router';
 import {
     createCompany,
     deactivateCompany,
+    DEFAULT_COMPANY_TIME_ZONE,
     inviteFirstAdmin,
     listCompanies,
     listFirstAdminInvitations,
+    listTimeZones,
     reactivateCompany,
     resendFirstAdminInvitation,
     revokeFirstAdminInvitation,
@@ -23,8 +25,19 @@ const companies = ref<Company[]>([]);
 const invitations = ref<Record<number, PendingInvitation[]>>({});
 const meta = ref<PaginationMeta | null>(null);
 const companyName = ref('');
+const timeZone = ref(DEFAULT_COMPANY_TIME_ZONE);
+const timeZones = ref<string[]>([DEFAULT_COMPANY_TIME_ZONE]);
+const bin = ref('');
+const contactPerson = ref('');
+const phone = ref('');
+const companyEmail = ref('');
 const firstAdminEmail = ref('');
 const nameError = ref<string | null>(null);
+const timeZoneError = ref<string | null>(null);
+const binError = ref<string | null>(null);
+const contactPersonError = ref<string | null>(null);
+const phoneError = ref<string | null>(null);
+const companyEmailError = ref<string | null>(null);
 const firstAdminEmailError = ref<string | null>(null);
 const replacementEmails = reactive<Record<number, string>>({});
 const invitationErrors = ref<Record<number, string | null>>({});
@@ -40,16 +53,28 @@ const page = computed(() => {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 });
 
+const search = computed(() => (typeof route.query.search === 'string' ? route.query.search : ''));
+
 watch(
-    page,
+    [page, search],
     () => {
         void refresh();
     },
     { immediate: true },
 );
 
+void loadTimeZones();
+
+async function loadTimeZones(): Promise<void> {
+    const body = await listTimeZones();
+    timeZones.value = body.data.identifiers;
+}
+
 async function refresh(): Promise<void> {
-    const body = await listCompanies(page.value);
+    const body =
+        search.value === ''
+            ? await listCompanies(page.value)
+            : await listCompanies(page.value, search.value);
     companies.value = body.data;
     meta.value = body.meta;
 
@@ -72,8 +97,39 @@ async function refresh(): Promise<void> {
 function showPage(next: number): void {
     void router.push({
         path: '/companies',
-        query: next > 1 ? { page: String(next) } : {},
+        query: listQuery(next, search.value),
     });
+}
+
+function applySearch(value: string): void {
+    void router.push({
+        path: '/companies',
+        query: listQuery(page.value, value),
+    });
+}
+
+function onSearchInput(event: Event): void {
+    const target = event.target;
+
+    if (!(target instanceof HTMLInputElement)) {
+        return;
+    }
+
+    applySearch(target.value);
+}
+
+function listQuery(nextPage: number, nextSearch: string): Record<string, string> {
+    const query: Record<string, string> = {};
+
+    if (nextPage > 1) {
+        query.page = String(nextPage);
+    }
+
+    if (nextSearch !== '') {
+        query.search = nextSearch;
+    }
+
+    return query;
 }
 
 function stateLabel(company: Company): string {
@@ -90,19 +146,50 @@ function companyInvitations(companyId: number): PendingInvitation[] {
 
 async function create(): Promise<void> {
     nameError.value = null;
+    timeZoneError.value = null;
+    binError.value = null;
+    contactPersonError.value = null;
+    phoneError.value = null;
+    companyEmailError.value = null;
     firstAdminEmailError.value = null;
 
     try {
-        await createCompany(companyName.value, firstAdminEmail.value);
+        await createCompany({
+            name: companyName.value,
+            first_admin_email: firstAdminEmail.value,
+            time_zone: timeZone.value,
+            bin: bin.value,
+            contact_person: contactPerson.value,
+            phone: phone.value,
+            email: companyEmail.value,
+        });
         companyName.value = '';
+        timeZone.value = DEFAULT_COMPANY_TIME_ZONE;
+        bin.value = '';
+        contactPerson.value = '';
+        phone.value = '';
+        companyEmail.value = '';
         firstAdminEmail.value = '';
         await refresh();
     } catch (error) {
         if (error instanceof ApiError && error.status === 422) {
             nameError.value = error.errors?.name?.[0] ?? null;
+            timeZoneError.value = error.errors?.time_zone?.[0] ?? null;
+            binError.value = error.errors?.bin?.[0] ?? null;
+            contactPersonError.value = error.errors?.contact_person?.[0] ?? null;
+            phoneError.value = error.errors?.phone?.[0] ?? null;
+            companyEmailError.value = error.errors?.email?.[0] ?? null;
             firstAdminEmailError.value = error.errors?.first_admin_email?.[0] ?? null;
 
-            if (nameError.value !== null || firstAdminEmailError.value !== null) {
+            if (
+                nameError.value !== null ||
+                timeZoneError.value !== null ||
+                binError.value !== null ||
+                contactPersonError.value !== null ||
+                phoneError.value !== null ||
+                companyEmailError.value !== null ||
+                firstAdminEmailError.value !== null
+            ) {
                 return;
             }
         }
@@ -190,6 +277,84 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
                 {{ nameError }}
             </p>
             <label class="flex flex-col gap-1 text-sm">
+                {{ t('companies.timeZone') }}
+                <select
+                    v-model="timeZone"
+                    data-testid="company-time-zone"
+                    name="time_zone"
+                    class="rounded border border-zinc-300 px-3 py-2"
+                >
+                    <option v-for="zone in timeZones" :key="zone" :value="zone">{{ zone }}</option>
+                </select>
+            </label>
+            <p
+                v-if="timeZoneError"
+                data-testid="company-time-zone-error"
+                class="text-sm text-red-700"
+            >
+                {{ timeZoneError }}
+            </p>
+            <label class="flex flex-col gap-1 text-sm">
+                {{ t('companies.bin') }}
+                <input
+                    v-model="bin"
+                    data-testid="company-bin"
+                    type="text"
+                    name="bin"
+                    class="rounded border border-zinc-300 px-3 py-2"
+                />
+            </label>
+            <p v-if="binError" data-testid="company-bin-error" class="text-sm text-red-700">
+                {{ binError }}
+            </p>
+            <label class="flex flex-col gap-1 text-sm">
+                {{ t('companies.contactPerson') }}
+                <input
+                    v-model="contactPerson"
+                    data-testid="company-contact-person"
+                    type="text"
+                    name="contact_person"
+                    class="rounded border border-zinc-300 px-3 py-2"
+                />
+            </label>
+            <p
+                v-if="contactPersonError"
+                data-testid="company-contact-person-error"
+                class="text-sm text-red-700"
+            >
+                {{ contactPersonError }}
+            </p>
+            <label class="flex flex-col gap-1 text-sm">
+                {{ t('companies.phone') }}
+                <input
+                    v-model="phone"
+                    data-testid="company-phone"
+                    type="text"
+                    name="phone"
+                    class="rounded border border-zinc-300 px-3 py-2"
+                />
+            </label>
+            <p v-if="phoneError" data-testid="company-phone-error" class="text-sm text-red-700">
+                {{ phoneError }}
+            </p>
+            <label class="flex flex-col gap-1 text-sm">
+                {{ t('companies.email') }}
+                <input
+                    v-model="companyEmail"
+                    data-testid="company-email"
+                    type="email"
+                    name="email"
+                    class="rounded border border-zinc-300 px-3 py-2"
+                />
+            </label>
+            <p
+                v-if="companyEmailError"
+                data-testid="company-email-error"
+                class="text-sm text-red-700"
+            >
+                {{ companyEmailError }}
+            </p>
+            <label class="flex flex-col gap-1 text-sm">
                 {{ t('companies.firstAdminEmail') }}
                 <input
                     v-model="firstAdminEmail"
@@ -215,18 +380,42 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
                 {{ t('companies.create') }}
             </button>
         </form>
+        <label class="flex max-w-sm flex-col gap-1 text-sm">
+            {{ t('companies.search') }}
+            <input
+                :value="search"
+                data-testid="company-search"
+                type="search"
+                name="search"
+                class="rounded border border-zinc-300 px-3 py-2"
+                @input="onSearchInput"
+            />
+        </label>
+        <p
+            v-if="search !== '' && companies.length === 0"
+            data-testid="companies-empty"
+            class="text-sm"
+        >
+            {{ t('companies.empty') }}
+        </p>
         <table class="w-full text-left text-sm">
             <thead>
                 <tr>
                     <th class="py-2">{{ t('companies.name') }}</th>
+                    <th class="py-2">{{ t('companies.bin') }}</th>
                     <th class="py-2">{{ t('companies.state') }}</th>
+                    <th class="py-2">{{ t('companies.created') }}</th>
                     <th class="py-2">{{ t('companies.actions') }}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="company in companies" :key="company.id" data-testid="company-row">
                     <td class="py-2">{{ company.name }}</td>
+                    <td class="py-2" :data-testid="`company-bin-${company.id}`">
+                        {{ company.bin ?? '' }}
+                    </td>
                     <td class="py-2">{{ stateLabel(company) }}</td>
+                    <td class="py-2">{{ company.created_at }}</td>
                     <td class="py-2">
                         <button
                             v-if="company.is_active"

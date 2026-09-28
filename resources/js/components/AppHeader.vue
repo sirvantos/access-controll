@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { signOut } from '../api/auth';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { t } from '../utils/i18n';
@@ -20,13 +20,39 @@ async function submitSignOut(): Promise<void> {
         class="flex items-center justify-between border-b border-zinc-200 px-4 py-3"
     >
         <span data-testid="current-email">{{ currentUser.email }}</span>
-        <button
-            type="button"
-            data-testid="sign-out"
-            class="text-sm underline"
-            @click="submitSignOut"
-        >
-            {{ t('auth.signOut') }}
-        </button>
+        <nav class="flex items-center gap-4">
+            <RouterLink
+                v-if="currentUser.role === 'super_admin'"
+                to="/companies"
+                data-testid="companies-link"
+                class="text-sm underline"
+            >
+                {{ t('companies.title') }}
+            </RouterLink>
+            <RouterLink
+                v-if="currentUser.role === 'company_admin'"
+                to="/company/users"
+                data-testid="company-users-link"
+                class="text-sm underline"
+            >
+                {{ t('companyUsers.title') }}
+            </RouterLink>
+            <RouterLink
+                v-if="currentUser.role === 'company_admin' || currentUser.role === 'viewer'"
+                to="/company"
+                data-testid="company-profile-link"
+                class="text-sm underline"
+            >
+                {{ t('companyProfile.nav') }}
+            </RouterLink>
+            <button
+                type="button"
+                data-testid="sign-out"
+                class="text-sm underline"
+                @click="submitSignOut"
+            >
+                {{ t('auth.signOut') }}
+            </button>
+        </nav>
     </header>
 </template>

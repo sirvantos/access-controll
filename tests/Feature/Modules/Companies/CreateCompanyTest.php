@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Requests\CreateCompanyRequest;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Companies\Models\CompanyTimeZoneVersion;
+use App\Modules\Companies\Models\CompanyWorkingDaySettingVersion;
 use App\Modules\Identity\Models\Invitation;
 use App\Modules\Identity\Notifications\InvitationNotification;
 use App\Modules\Identity\PublicApi\Role;
@@ -25,9 +27,37 @@ it('creates a company and sends the first company admin invitation', function ()
         ])
         ->assertCreated()
         ->assertJsonPath('data.name', 'Acme')
+        ->assertJsonPath('data.time_zone', 'Asia/Almaty')
+        ->assertJsonPath('data.bin', null)
+        ->assertJsonPath('data.contact_person', null)
+        ->assertJsonPath('data.phone', null)
+        ->assertJsonPath('data.email', null)
         ->assertJsonPath('data.is_active', true)
         ->assertJsonPath('data.awaiting_first_admin', true)
-        ->assertJsonPath('data.created_at', $createdAt);
+        ->assertJsonPath('data.created_at', $createdAt)
+        ->assertJsonPath('data.working_day_settings.start_time', '09:00')
+        ->assertJsonPath('data.working_day_settings.end_time', '18:00')
+        ->assertJsonPath('data.working_day_settings.working_days', [
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+        ])
+        ->assertJsonPath('data.working_day_settings.break_duration_minutes', 60)
+        ->assertJsonPath('data.working_day_settings.break_deducted', true)
+        ->assertJsonPath('data.working_day_settings.lateness_grace_minutes', 0);
+
+    $company = Company::query()->where('name', 'Acme')->first();
+    $appliesFrom = Carbon::parse('2026-01-15 00:00:00', 'Asia/Almaty');
+
+    expect($company)->not->toBeNull()
+        ->and($company->name_normalized)->toBe('acme')
+        ->and($company->timeZoneVersions)->toHaveCount(1)
+        ->and($company->workingDaySettingVersions)->toHaveCount(1)
+        ->and($company->timeZoneVersions->first()?->time_zone)->toBe('Asia/Almaty')
+        ->and($company->timeZoneVersions->first()?->applies_from?->equalTo($appliesFrom))->toBeTrue()
+        ->and($company->workingDaySettingVersions->first()?->applies_from?->equalTo($appliesFrom))->toBeTrue();
 
     $invitation = Invitation::query()->where('email', 'admin@acme.test')->first();
 
@@ -53,6 +83,8 @@ it('refuses a registered first admin email without creating a company', function
     $owner = ownerSuperAdmin();
     $existing = acmeAdmin();
     $companies = Company::query()->count();
+    $timeZones = CompanyTimeZoneVersion::query()->count();
+    $settings = CompanyWorkingDaySettingVersion::query()->count();
 
     signedInAs($owner)
         ->postJson('/api/v1/admin/companies', [
@@ -63,6 +95,8 @@ it('refuses a registered first admin email without creating a company', function
         ->assertJsonPath('errors.first_admin_email.0', __('identity.email_already_registered'));
 
     expect(Company::query()->count())->toBe($companies)
+        ->and(CompanyTimeZoneVersion::query()->count())->toBe($timeZones)
+        ->and(CompanyWorkingDaySettingVersion::query()->count())->toBe($settings)
         ->and(Company::query()->where('name', 'New Co')->exists())->toBeFalse()
         ->and(Invitation::query()->where('email', $existing->email)->exists())->toBeFalse();
 
@@ -88,3 +122,83 @@ it('rejects a company name longer than 255 characters', function () {
 
     Notification::assertNothingSent();
 });
+
+it('saves a chosen time zone and every optional detail', function () {
+    Carbon::setTestNow('2026-01-15 12:00:00');
+    Notification::fake();
+    $owner = ownerSuperAdmin();
+
+    signedInAs($owner)
+        ->postJson('/api/v1/admin/companies', [
+            'name' => 'Acme',
+            'first_admin_email' => 'admin@acme.test',
+            'time_zone' => 'Europe/Moscow',
+            'bin' => sampleCompanyBin(),
+            'contact_person' => 'Acme Contact',
+            'phone' => sampleCompanyPhone(),
+            'email' => 'Office@Acme.Test',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.time_zone', 'Europe/Moscow')
+        ->assertJsonPath('data.bin', sampleCompanyBin())
+        ->assertJsonPath('data.contact_person', 'Acme Contact')
+        ->assertJsonPath('data.phone', sampleCompanyPhone())
+        ->assertJsonPath('data.email', 'office@acme.test')
+        ->assertJsonPath('data.is_active', true)
+        ->assertJsonPath('data.working_day_settings.start_time', '09:00');
+
+    $company = Company::query()->where('name', 'Acme')->first();
+    $appliesFrom = Carbon::parse('2026-01-15 00:00:00', 'Europe/Moscow');
+
+    expect($company)->not->toBeNull()
+        ->and($company->bin)->toBe(sampleCompanyBin())
+        ->and($company->contact_person)->toBe('Acme Contact')
+        ->and($company->phone)->toBe(sampleCompanyPhone())
+        ->and($company->email)->toBe('office@acme.test')
+        ->and($company->timeZoneVersions->first()?->time_zone)->toBe('Europe/Moscow')
+        ->and($company->timeZoneVersions->first()?->applies_from?->equalTo($appliesFrom))->toBeTrue();
+});
+
+it('explains each invalid company field and creates nothing', function () {
+    Notification::fake();
+    $owner = ownerSuperAdmin();
+
+    signedInAs($owner)
+        ->postJson('/api/v1/admin/companies', [
+            'name' => '',
+            'first_admin_email' => 'admin@acme.test',
+            'time_zone' => 'Not/AZone',
+            'bin' => '12345678901',
+            'phone' => '123456789',
+            'email' => 'not-an-email',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name', 'time_zone', 'bin', 'phone', 'email']);
+
+    expect(Company::query()->count())->toBe(0)
+        ->and(CompanyTimeZoneVersion::query()->count())->toBe(0)
+        ->and(CompanyWorkingDaySettingVersion::query()->count())->toBe(0);
+
+    Notification::assertNothingSent();
+});
+
+it('refuses a company admin or viewer', function (callable $actor) {
+    Notification::fake();
+    $user = $actor();
+    $companies = Company::query()->count();
+
+    signedInAs($user)
+        ->postJson('/api/v1/admin/companies', [
+            'name' => 'New Co',
+            'first_admin_email' => 'admin@newco.test',
+        ])
+        ->assertForbidden();
+
+    expect(Company::query()->count())->toBe($companies)
+        ->and(Company::query()->where('name', 'New Co')->exists())->toBeFalse();
+
+    Notification::assertNothingSent();
+})->with([
+    'company admin' => [fn () => acmeAdmin()],
+    'viewer' => [fn () => acmeViewer()],
+]);

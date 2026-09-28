@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 
+it('documents a nullable bin on the company schema', function () {
+    $yaml = (string) file_get_contents(public_path('swagger.yaml'));
+
+    expect($yaml)->toContain('required: [id, name, bin, is_active, awaiting_first_admin, created_at]')
+        ->and($yaml)->toContain("bin:\n          type: [\"string\", \"null\"]");
+});
+
 it('documents every api v1 route', function () {
     $operations = openApiOperations((string) file_get_contents(public_path('swagger.yaml')));
 

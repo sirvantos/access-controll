@@ -2,11 +2,165 @@
     "feature_dir": "specs/002-company-management-for-a",
     "branch": "002-company-management-for-a",
     "description": "Company management for a CRM service for access control and time tracking.\n\nThe service serves multiple client companies. A company is the core unit of the service: it owns users, employees, face recognition terminals, entry/exit events, and reports.\n\nThe super admin creates companies, sees a searchable list of them, and can deactivate or reactivate a company. Companies are never deleted. Their data is kept when they are deactivated.\n\nA company has a name, a time zone (default Asia/Almaty), and optional details: business ID (BIN), contact person, phone, email. The time zone is needed to display entry/exit times correctly and to assign each event to the correct day.\n\nA company has working day settings used to calculate late arrivals and hours worked: start and end of the working day, working days of the week, break duration and whether it is deducted, and a lateness grace period in minutes. Defaults are 09:00\u201318:00, Monday\u2013Friday, 60-minute break. Changing the settings must not change calculations for past days.\n\nA company admin can edit the details and settings of their own company only. A viewer sees them read-only.\n\nOut of scope for now: night shifts, individual employee schedules, holiday calendar, branches within a company, pricing plans and billing.",
-    "next": "implement",
+    "next": "converge",
     "stop": null,
-    "lock": null,
+    "lock": {
+        "pid": 46202,
+        "at": "2026-09-28T17:08:41+00:00"
+    },
     "converge_rounds": 0,
-    "tasks": [],
+    "tasks": {
+        "T001": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "0e71ef6b-3dd2-4f33-924e-d2343af8a42c",
+            "spec_hash": "e3451e30a9fa5ba6f85095d4efd90d8f7d823766203f2b883bd1bb105e04e32c"
+        },
+        "T002": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "0e71ef6b-3dd2-4f33-924e-d2343af8a42c",
+            "spec_hash": "4441e0feaa89488c17c7abfa9c27714c0306f7a79351eb0599cc3fb68ea37cad"
+        },
+        "T003": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "0e71ef6b-3dd2-4f33-924e-d2343af8a42c",
+            "spec_hash": "0dc085b87c2260641738632bb8d594c36dce82f0ce2a5df05855bd404ccabce0"
+        },
+        "T004": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "0e71ef6b-3dd2-4f33-924e-d2343af8a42c",
+            "spec_hash": "1b2058c17120ef74c21e5b132057561a936a02076ea1aac9e93212dcb73c03aa"
+        },
+        "T005": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "0e71ef6b-3dd2-4f33-924e-d2343af8a42c",
+            "spec_hash": "1d408244498e940a22b8b3e9e28cbb68d7daf0b5600cbd8ea3215fcb1f6e9f46"
+        },
+        "T006": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "f138950d-0839-413f-bfac-486571fa3479",
+            "spec_hash": "8706d26771b580c7378cc8d7846120fb68a7cd2cb5ba9479a7892aece3fb717b"
+        },
+        "T007": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "f138950d-0839-413f-bfac-486571fa3479",
+            "spec_hash": "fcc23df98a600052b737e879cb15ae9ac32013847db7e649dcfcfa0f65c0cf52"
+        },
+        "T008": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "f138950d-0839-413f-bfac-486571fa3479",
+            "spec_hash": "be15e5071d798c1e76b739679128320d4b65e92c219cfe90b54a7831ab0847c5"
+        },
+        "T009": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "f138950d-0839-413f-bfac-486571fa3479",
+            "spec_hash": "a6e6aa6bf94b23fd2e5c5a149391a3dcd9b47f1bcb1425a1255c2f3c2034025e"
+        },
+        "T010": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "f138950d-0839-413f-bfac-486571fa3479",
+            "spec_hash": "07521ca05cfee5cde4b18fc2b38b0094b7c01b893c2525667764bb65dbfe4a5b"
+        },
+        "T011": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "89a44ebf-1e8b-4f13-be62-18db1e340be2",
+            "spec_hash": "635663c2d89e2280498c6aa4945834fa98fb0242fd7b97a50d2fe812833d16e6"
+        },
+        "T012": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "89a44ebf-1e8b-4f13-be62-18db1e340be2",
+            "spec_hash": "cd5a2e7c8e4fffdbe3d685d92347a2cb379ec9a900ab6b71d06c8fbfd0859556"
+        },
+        "T013": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "89a44ebf-1e8b-4f13-be62-18db1e340be2",
+            "spec_hash": "926d1a096ec9bf7de81329acef7a30ac7f1b23c4adbc3ec30a65543282f7ab8f"
+        },
+        "T014": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "89a44ebf-1e8b-4f13-be62-18db1e340be2",
+            "spec_hash": "aa340cf90363cc4dad6422ea132b1c123a08690ca7587c224d53e5f25bc1e3a5"
+        },
+        "T015": {
+            "attempts": 3,
+            "status": "done",
+            "chat_id": "89a44ebf-1e8b-4f13-be62-18db1e340be2",
+            "spec_hash": "b1d14617cc2bf138b83362713635fb84560b0514213679b0f86f58e0436aca66"
+        },
+        "T016": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "593b2ca2-3e27-47a6-a92d-f091aaeabbea",
+            "spec_hash": "cbcf635e6e646c99a52ae0a6f3451cffd3938b628e51fc755c4d9793d32bf81e"
+        },
+        "T017": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "593b2ca2-3e27-47a6-a92d-f091aaeabbea",
+            "spec_hash": "6cb785f45c1394ac5342e06dc1ea3fe07cda9d3fcb99a22948c925fb0172bc1c"
+        },
+        "T018": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "593b2ca2-3e27-47a6-a92d-f091aaeabbea",
+            "spec_hash": "225a14cc3da617cc05b8cc445b0dec033fe7ed5777c1352552c73d0a2091af41"
+        },
+        "T019": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "593b2ca2-3e27-47a6-a92d-f091aaeabbea",
+            "spec_hash": "611a9a644b8fb5f6d495c785698c9e3cbdd9a5eeec230be54f792e8f9384f682"
+        },
+        "T020": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "593b2ca2-3e27-47a6-a92d-f091aaeabbea",
+            "spec_hash": "b527596b0337ed26acac0b35f22119fa3c193364d6f696db4b07e8873ea449c3"
+        },
+        "T021": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "891c8f31-5eba-413d-892d-3fcde72466b8",
+            "spec_hash": "9e152ffd565bc1068a1e4358394cd4d841a0a9fe2dafcb10652faa5c803f0623"
+        },
+        "T022": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "891c8f31-5eba-413d-892d-3fcde72466b8",
+            "spec_hash": "0bb82d14d48eddde98766e7a0b1547e46f52f937afa48ef3dcecda33dc904a55"
+        },
+        "T023": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "891c8f31-5eba-413d-892d-3fcde72466b8",
+            "spec_hash": "d2e253bcdfaa87bfd1ad50b30e6cdb7ce1eac8c2e6884d995b5081c6a130e278"
+        },
+        "T024": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "891c8f31-5eba-413d-892d-3fcde72466b8",
+            "spec_hash": "17b996355ebea54130f4f8bbe562c6c8a729b5dd2e4a296269cde04938edb770"
+        },
+        "T025": {
+            "attempts": 2,
+            "status": "done",
+            "chat_id": "891c8f31-5eba-413d-892d-3fcde72466b8",
+            "spec_hash": "299b026ab80b25c10fc616cca54a4ae6db37dac52e68292ab245d941c9961ee1"
+        }
+    },
     "author_chat_id": "53d872c9-267b-4c18-aad4-6f01c81ea0b2",
     "author_model": "cursor-grok-4.6-high"
 }

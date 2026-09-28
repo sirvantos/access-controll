@@ -7,6 +7,7 @@ use Tests\TestCase;
 
 require_once __DIR__.'/../factory/bootstrap.php';
 require_once __DIR__.'/Support/Identity/helpers.php';
+require_once __DIR__.'/Support/Companies/helpers.php';
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

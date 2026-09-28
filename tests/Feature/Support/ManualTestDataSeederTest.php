@@ -34,7 +34,9 @@ it('seeds the manual sign-in accounts', function () {
         ->and($globexAdmin?->company_id)->toBe($globex?->id)
         ->and($globexViewer?->role)->toBe(Role::Viewer)
         ->and($globexViewer?->company_id)->toBe($globex?->id)
-        ->and(Hash::check(ManualTestDataSeeder::PASSWORD, (string) $acmeAdmin?->password))->toBeTrue();
+        ->and(Hash::check(ManualTestDataSeeder::PASSWORD, (string) $acmeAdmin?->password))->toBeTrue()
+        ->and($acme?->name_normalized)->toBe('acme')
+        ->and($globex?->name_normalized)->toBe('globex');
 });
 
 it('seeds a pending acme invitation with a known token', function () {

@@ -34,6 +34,7 @@ final class ReactivateCompanyAction
         return new CompanySummary(
             id: $company->id,
             name: $company->name,
+            bin: $company->bin === '' ? null : $company->bin,
             isActive: $company->isActive(),
             awaitingFirstAdmin: $this->firstAdminInvitations->isAwaitingFirstAdmin($company->id),
             createdAt: $createdAt,

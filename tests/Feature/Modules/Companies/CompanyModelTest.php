@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 use App\Modules\Companies\Models\Company;
+use App\Modules\Companies\Models\CompanyTimeZoneVersion;
+use App\Modules\Companies\Models\CompanyWorkingDaySettingVersion;
+use App\Modules\Companies\PublicApi\WeekDay;
+use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 it('casts every companies column', function () {
     $company = Company::factory()->create([
@@ -14,6 +19,11 @@ it('casts every companies column', function () {
     expect($company->getCasts())->toMatchArray([
         'id' => 'integer',
         'name' => 'string',
+        'bin' => 'string',
+        'contact_person' => 'string',
+        'phone' => 'string',
+        'email' => 'string',
+        'name_normalized' => 'string',
         'deactivated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -50,4 +60,61 @@ it('builds an active Acme company by default and a deactivated one from the fact
         ->and($deactivated->name)->toBe('Acme')
         ->and($deactivated->deactivated_at)->not->toBeNull()
         ->and($deactivated->isActive())->toBeFalse();
+});
+
+it('stores a normalized name and one default version in each schedule table', function () {
+    $company = Company::factory()->create([
+        'name' => 'Ёлка',
+    ]);
+
+    $timeZone = $company->timeZoneVersions()->first();
+    $settings = $company->workingDaySettingVersions()->first();
+
+    expect($company->name_normalized)->toBe('ёлка')
+        ->and($company->bin)->toBeNull()
+        ->and($company->timeZoneVersions)->toHaveCount(1)
+        ->and($company->workingDaySettingVersions)->toHaveCount(1)
+        ->and($timeZone)->toBeInstanceOf(CompanyTimeZoneVersion::class)
+        ->and($timeZone->time_zone)->toBe('Asia/Almaty')
+        ->and($timeZone->company)->toBeInstanceOf(Company::class)
+        ->and($timeZone->getCasts())->toMatchArray([
+            'id' => 'integer',
+            'company_id' => 'integer',
+            'time_zone' => 'string',
+            'applies_from' => 'datetime',
+            'created_at' => 'datetime',
+        ])
+        ->and($settings)->toBeInstanceOf(CompanyWorkingDaySettingVersion::class)
+        ->and($settings->start_time)->toStartWith('09:00')
+        ->and($settings->end_time)->toStartWith('18:00')
+        ->and($settings->break_duration_minutes)->toBe(60)
+        ->and($settings->break_deducted)->toBeTrue()
+        ->and($settings->lateness_grace_minutes)->toBe(0)
+        ->and($settings->working_days->map(fn (WeekDay $day): string => $day->value)->all())->toBe([
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+        ])
+        ->and($settings->company)->toBeInstanceOf(Company::class)
+        ->and($settings->getCasts())->toMatchArray([
+            'id' => 'integer',
+            'company_id' => 'integer',
+            'start_time' => 'string',
+            'end_time' => 'string',
+            'working_days' => AsEnumCollection::of(WeekDay::class),
+            'break_duration_minutes' => 'integer',
+            'break_deducted' => 'boolean',
+            'lateness_grace_minutes' => 'integer',
+            'applies_from' => 'datetime',
+            'created_at' => 'datetime',
+        ])
+        ->and(Schema::hasColumn('company_time_zone_versions', 'updated_at'))->toBeFalse();
+
+    $company->update(['name' => 'Globex']);
+
+    expect($company->fresh()->name_normalized)->toBe('globex')
+        ->and($company->timeZoneVersions()->count())->toBe(1)
+        ->and($company->workingDaySettingVersions()->count())->toBe(1);
 });

@@ -199,6 +199,20 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'name' => 'name',
+        'first_admin_email' => 'first admin email',
+        'time_zone' => 'time zone',
+        'bin' => 'BIN',
+        'contact_person' => 'contact person',
+        'phone' => 'phone',
+        'email' => 'email',
+        'start_time' => 'start time',
+        'end_time' => 'end time',
+        'working_days' => 'working days',
+        'break_duration_minutes' => 'break duration',
+        'lateness_grace_minutes' => 'lateness grace period',
+        'break_deducted' => 'break deducted',
+    ],
 
 ];

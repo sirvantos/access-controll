@@ -8,7 +8,9 @@ use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\PublicApi\CompanySummary;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Stringable;
 use LogicException;
 use Throwable;
 
@@ -21,9 +23,15 @@ final class ListCompaniesAction
     /**
      * @return LengthAwarePaginator<int, CompanySummary>
      */
-    public function __invoke(int $page): LengthAwarePaginator
+    public function __invoke(?Stringable $search, int $page): LengthAwarePaginator
     {
-        $companies = Company::query()
+        $query = Company::query();
+
+        if ($search !== null) {
+            $this->matchingSearch($query, $search);
+        }
+
+        $companies = $query
             ->orderBy('id')
             ->paginate(perPage: self::COMPANY_LIST_PAGE_SIZE, page: max(1, $page));
 
@@ -44,6 +52,21 @@ final class ListCompaniesAction
     }
 
     /**
+     * @param  Builder<Company>  $query
+     * @return Builder<Company>
+     */
+    private function matchingSearch(Builder $query, Stringable $search): Builder
+    {
+        $pattern = '%'.$search.'%';
+
+        return $query->where(
+            fn (Builder $inner): Builder => $inner
+                ->where('name_normalized', 'like', $pattern)
+                ->orWhere('bin', 'like', $pattern),
+        );
+    }
+
+    /**
      * @param  list<int>  $awaitingIds
      *
      * @throws Throwable
@@ -57,6 +80,7 @@ final class ListCompaniesAction
         return new CompanySummary(
             id: $company->id,
             name: $company->name,
+            bin: $company->bin === '' ? null : $company->bin,
             isActive: $company->isActive(),
             awaitingFirstAdmin: in_array($company->id, $awaitingIds, true),
             createdAt: $createdAt,

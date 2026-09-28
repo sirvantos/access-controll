@@ -84,6 +84,35 @@ function materializedApiRoutes(string $prefix): array
     return $calls;
 }
 
+/**
+ * @return list<array{0: string, 1: string}>
+ */
+function materializedCompanyRoutes(): array
+{
+    $calls = [];
+
+    foreach (Route::getRoutes() as $route) {
+        $uri = $route->uri();
+
+        if ($uri !== 'api/v1/company' && ! str_starts_with($uri, 'api/v1/company/')) {
+            continue;
+        }
+
+        $path = preg_replace('/\{[^}]+\}/', '1', $uri);
+        throw_unless(is_string($path), RuntimeException::class);
+
+        foreach ($route->methods() as $method) {
+            if ($method === 'HEAD') {
+                continue;
+            }
+
+            $calls[] = [$method, '/'.$path];
+        }
+    }
+
+    return $calls;
+}
+
 function callMaterializedRoute(string $method, string $uri): TestResponse
 {
     return test()->json($method, $uri);
@@ -105,12 +134,22 @@ it('lets a viewer read events, timesheets, and reports and refuses management', 
         $this->postJson('/_test/manage/'.$category)->assertForbidden();
     }
 
-    $companyRoutes = materializedApiRoutes('api/v1/company/');
+    $companyRoutes = materializedCompanyRoutes();
     $adminRoutes = materializedApiRoutes('api/v1/admin/');
 
     expect($companyRoutes)->not->toBeEmpty();
 
-    foreach ([...$companyRoutes, ...$adminRoutes] as [$method, $uri]) {
+    foreach ($companyRoutes as [$method, $uri]) {
+        if ($method === 'GET' && ($uri === '/api/v1/company' || $uri === '/api/v1/company/working-day-settings')) {
+            callMaterializedRoute($method, $uri)->assertOk();
+
+            continue;
+        }
+
+        callMaterializedRoute($method, $uri)->assertForbidden();
+    }
+
+    foreach ($adminRoutes as [$method, $uri]) {
         callMaterializedRoute($method, $uri)->assertForbidden();
     }
 });
@@ -139,7 +178,7 @@ it('lets a company admin manage company categories and refuses super-admin route
 it('refuses a super admin every company route and both category probes', function () {
     signedInAs(ownerSuperAdmin());
 
-    $companyRoutes = materializedApiRoutes('api/v1/company/');
+    $companyRoutes = materializedCompanyRoutes();
 
     expect($companyRoutes)->not->toBeEmpty();
 

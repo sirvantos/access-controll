@@ -8,6 +8,7 @@ import { t } from '../../utils/i18n';
 const {
     listCompanies,
     createCompany,
+    listTimeZones,
     listFirstAdminInvitations,
     inviteFirstAdmin,
     resendFirstAdminInvitation,
@@ -17,6 +18,7 @@ const {
 } = vi.hoisted(() => ({
     listCompanies: vi.fn(),
     createCompany: vi.fn(),
+    listTimeZones: vi.fn(),
     listFirstAdminInvitations: vi.fn(),
     inviteFirstAdmin: vi.fn(),
     resendFirstAdminInvitation: vi.fn(),
@@ -28,17 +30,20 @@ const {
 vi.mock('../../api/adminCompanies', () => ({
     listCompanies,
     createCompany,
+    listTimeZones,
     listFirstAdminInvitations,
     inviteFirstAdmin,
     resendFirstAdminInvitation,
     revokeFirstAdminInvitation,
     deactivateCompany,
     reactivateCompany,
+    DEFAULT_COMPANY_TIME_ZONE: 'Asia/Almaty',
 }));
 
 const acme: Company = {
     id: 3,
     name: 'Acme',
+    bin: '123456789012',
     is_active: true,
     awaiting_first_admin: true,
     created_at: '2026-01-15T12:00:00+00:00',
@@ -47,6 +52,7 @@ const acme: Company = {
 const closed: Company = {
     id: 4,
     name: 'Closed Co',
+    bin: null,
     is_active: false,
     awaiting_first_admin: false,
     created_at: '2026-01-15T12:00:00+00:00',
@@ -97,6 +103,9 @@ afterEach(() => {
 describe('CompaniesPage', () => {
     beforeEach(() => {
         listCompanies.mockResolvedValue(emptyCompanies);
+        listTimeZones.mockResolvedValue({
+            data: { identifiers: ['Africa/Abidjan', 'Asia/Almaty', 'Europe/Moscow'] },
+        });
         listFirstAdminInvitations.mockResolvedValue(emptyInvitations);
         createCompany.mockResolvedValue({ data: acme });
         inviteFirstAdmin.mockResolvedValue({ data: pending });
@@ -126,7 +135,10 @@ describe('CompaniesPage', () => {
 
         expect(listCompanies).toHaveBeenCalledWith(1);
         expect(wrapper.text()).toContain(acme.name);
+        expect(wrapper.get('[data-testid="company-bin-3"]').text()).toBe('123456789012');
+        expect(wrapper.get('[data-testid="company-bin-4"]').text()).toBe('');
         expect(wrapper.text()).toContain(closed.name);
+        expect(wrapper.text()).toContain(acme.created_at);
         expect(wrapper.text()).toContain(t('companies.active'));
         expect(wrapper.text()).toContain(t('companies.deactivated'));
 
@@ -144,7 +156,70 @@ describe('CompaniesPage', () => {
         await wrapper.get('form').trigger('submit');
         await flushPromises();
 
-        expect(createCompany).toHaveBeenCalledWith('Acme', 'admin@acme.test');
+        expect(createCompany).toHaveBeenCalledWith({
+            name: 'Acme',
+            first_admin_email: 'admin@acme.test',
+            time_zone: 'Asia/Almaty',
+            bin: '',
+            contact_person: '',
+            phone: '',
+            email: '',
+        });
+    });
+
+    it('creates a company with a time zone and optional details', async () => {
+        const wrapper = await mountPage();
+
+        await wrapper.get('[data-testid="company-name"]').setValue('Acme');
+        await wrapper.get('[data-testid="company-time-zone"]').setValue('Europe/Moscow');
+        await wrapper.get('[data-testid="company-bin"]').setValue('123456789012');
+        await wrapper.get('[data-testid="company-contact-person"]').setValue('Acme Contact');
+        await wrapper.get('[data-testid="company-phone"]').setValue('+7 (700) 123-45-67');
+        await wrapper.get('[data-testid="company-email"]').setValue('office@acme.test');
+        await wrapper.get('[data-testid="first-admin-email"]').setValue('admin@acme.test');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(listTimeZones).toHaveBeenCalled();
+        expect(wrapper.find('[data-testid="working-day-start"]').exists()).toBe(false);
+        expect(createCompany).toHaveBeenCalledWith({
+            name: 'Acme',
+            first_admin_email: 'admin@acme.test',
+            time_zone: 'Europe/Moscow',
+            bin: '123456789012',
+            contact_person: 'Acme Contact',
+            phone: '+7 (700) 123-45-67',
+            email: 'office@acme.test',
+        });
+    });
+
+    it('shows each invalid create field', async () => {
+        createCompany.mockRejectedValue(
+            new ApiError(422, 'invalid', null, {
+                name: ['name'],
+                time_zone: ['time zone'],
+                bin: ['bin'],
+                contact_person: ['contact'],
+                phone: ['phone'],
+                email: ['email'],
+                first_admin_email: ['registered'],
+            }),
+        );
+
+        const wrapper = await mountPage();
+
+        await wrapper.get('[data-testid="company-name"]').setValue('Acme');
+        await wrapper.get('[data-testid="first-admin-email"]').setValue('admin@acme.test');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(wrapper.get('[data-testid="company-name-error"]').text()).toBe('name');
+        expect(wrapper.get('[data-testid="company-time-zone-error"]').text()).toBe('time zone');
+        expect(wrapper.get('[data-testid="company-bin-error"]').text()).toBe('bin');
+        expect(wrapper.get('[data-testid="company-contact-person-error"]').text()).toBe('contact');
+        expect(wrapper.get('[data-testid="company-phone-error"]').text()).toBe('phone');
+        expect(wrapper.get('[data-testid="company-email-error"]').text()).toBe('email');
+        expect(wrapper.get('[data-testid="first-admin-email-error"]').text()).toBe('registered');
     });
 
     it('shows a registered first-admin email next to that field', async () => {
@@ -242,14 +317,39 @@ describe('CompaniesPage', () => {
         expect(wrapper.findAll('[data-testid="company-row"]')[1]?.text()).toContain(
             t('companies.active'),
         );
+        expect(wrapper.get('[data-testid="company-bin-3"]').text()).toBe('123456789012');
+        expect(wrapper.get('[data-testid="company-bin-4"]').text()).toBe('');
         expect(wrapper.find('[data-testid="reactivate-company-4"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid^="delete-company"]').exists()).toBe(false);
+    });
+
+    it('searches from the query string and shows the empty copy when nothing matches', async () => {
+        listCompanies.mockResolvedValue({
+            ...emptyCompanies,
+            data: [acme],
+        });
+
+        const wrapper = await mountPage('/companies?search=stroy&page=2');
+
+        expect(listCompanies).toHaveBeenCalledWith(2, 'stroy');
+        expect(wrapper.get('[data-testid="company-search"]').element).toHaveProperty(
+            'value',
+            'stroy',
+        );
+
+        listCompanies.mockResolvedValue(emptyCompanies);
+        await wrapper.get('[data-testid="company-search"]').setValue('missing');
+        await flushPromises();
+
+        expect(listCompanies).toHaveBeenCalledWith(2, 'missing');
+        expect(wrapper.get('[data-testid="companies-empty"]').text()).toBe(t('companies.empty'));
     });
 });
 
-async function mountPage(): Promise<ReturnType<typeof mount>> {
+async function mountPage(path = '/companies'): Promise<ReturnType<typeof mount>> {
     const { default: CompaniesPage } = await import('../CompaniesPage.vue');
     const router = createRouter({
-        history: historyStartingAt('/companies'),
+        history: historyStartingAt(path),
         routes: [{ path: '/companies', component: { template: '<div />' } }],
     });
     const wrapper = mount(CompaniesPage, { global: { plugins: [router] } });

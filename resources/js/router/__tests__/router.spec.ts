@@ -105,6 +105,24 @@ describe('router guards', () => {
         expect(router.currentRoute.value.path).toBe('/company/users');
     });
 
+    it('keeps a company admin on the company profile', async () => {
+        const { router } = await boot(admin, '/company');
+
+        expect(router.currentRoute.value.path).toBe('/company');
+    });
+
+    it('keeps a viewer on the company profile', async () => {
+        const { router } = await boot(viewer, '/company');
+
+        expect(router.currentRoute.value.path).toBe('/company');
+    });
+
+    it('sends a super admin away from the company profile', async () => {
+        const { router } = await boot(owner, '/company');
+
+        expect(router.currentRoute.value.path).toBe('/');
+    });
+
     it('sends a viewer away from the companies page', async () => {
         const { router, root } = await boot(viewer, '/companies');
 
@@ -143,6 +161,43 @@ async function boot(
             return user === null
                 ? jsonResponse({ message: 'Unauthenticated.' }, 401)
                 : jsonResponse({ data: user }, 200);
+        }
+
+        if (url === '/api/v1/time-zones') {
+            return jsonResponse({ data: { identifiers: ['Asia/Almaty', 'Europe/Moscow'] } }, 200);
+        }
+
+        if (url === '/api/v1/company') {
+            return jsonResponse(
+                {
+                    data: {
+                        id: 3,
+                        name: 'Acme',
+                        time_zone: 'Asia/Almaty',
+                        bin: null,
+                        contact_person: null,
+                        phone: null,
+                        email: null,
+                    },
+                },
+                200,
+            );
+        }
+
+        if (url === '/api/v1/company/working-day-settings') {
+            return jsonResponse(
+                {
+                    data: {
+                        start_time: '09:00',
+                        end_time: '18:00',
+                        working_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+                        break_duration_minutes: 60,
+                        break_deducted: true,
+                        lateness_grace_minutes: 0,
+                    },
+                },
+                200,
+            );
         }
 
         if (

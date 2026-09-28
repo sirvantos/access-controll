@@ -46,8 +46,15 @@
     "companies": {
         "title": "Компании",
         "name": "Название",
+        "timeZone": "Часовой пояс",
+        "bin": "БИН",
+        "contactPerson": "Контактное лицо",
+        "phone": "Телефон",
         "firstAdminEmail": "Эл. почта первого администратора",
         "create": "Создать компанию",
+        "search": "Поиск",
+        "empty": "Ничего не найдено.",
+        "created": "Создана",
         "state": "Состояние",
         "active": "Активна",
         "deactivated": "Деактивирована",
@@ -64,6 +71,28 @@
         "reactivate": "Активировать",
         "previous": "Назад",
         "next": "Далее"
+    },
+    "companyProfile": {
+        "nav": "Компания",
+        "title": "Компания",
+        "save": "Сохранить",
+        "settingsTitle": "Рабочий день",
+        "start": "Начало",
+        "end": "Окончание",
+        "workingDays": "Рабочие дни",
+        "breakDuration": "Перерыв (минуты)",
+        "breakDeducted": "Вычитать перерыв",
+        "grace": "Допуск опоздания (минуты)",
+        "saveSettings": "Сохранить настройки",
+        "days": {
+            "monday": "Понедельник",
+            "tuesday": "Вторник",
+            "wednesday": "Среда",
+            "thursday": "Четверг",
+            "friday": "Пятница",
+            "saturday": "Суббота",
+            "sunday": "Воскресенье"
+        }
     },
     "roles": {
         "super_admin": "Суперадминистратор",

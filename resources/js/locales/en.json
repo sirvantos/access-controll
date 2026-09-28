@@ -46,8 +46,15 @@
     "companies": {
         "title": "Companies",
         "name": "Name",
+        "timeZone": "Time zone",
+        "bin": "BIN",
+        "contactPerson": "Contact person",
+        "phone": "Phone",
         "firstAdminEmail": "First admin email",
         "create": "Create company",
+        "search": "Search",
+        "empty": "Nothing was found.",
+        "created": "Created",
         "state": "State",
         "active": "Active",
         "deactivated": "Deactivated",
@@ -64,6 +71,28 @@
         "reactivate": "Reactivate",
         "previous": "Previous",
         "next": "Next"
+    },
+    "companyProfile": {
+        "nav": "Company",
+        "title": "Company",
+        "save": "Save",
+        "settingsTitle": "Working day",
+        "start": "Start",
+        "end": "End",
+        "workingDays": "Working days",
+        "breakDuration": "Break (minutes)",
+        "breakDeducted": "Deduct break",
+        "grace": "Lateness grace (minutes)",
+        "saveSettings": "Save settings",
+        "days": {
+            "monday": "Monday",
+            "tuesday": "Tuesday",
+            "wednesday": "Wednesday",
+            "thursday": "Thursday",
+            "friday": "Friday",
+            "saturday": "Saturday",
+            "sunday": "Sunday"
+        }
     },
     "roles": {
         "super_admin": "Super admin",

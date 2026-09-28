@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Modules\Companies\Models\CompanyTimeZoneVersion;
+use App\Modules\Companies\Models\CompanyWorkingDaySettingVersion;
 use App\Modules\Identity\Models\User;
 
 it('lets active users sign in again after the company is reactivated', function () {
@@ -102,4 +104,52 @@ it('leaves an already active company unchanged', function () {
         ->assertJsonPath('data.is_active', true);
 
     expect($company->fresh()?->deactivated_at)->toBeNull();
+});
+
+it('restores the active state and leaves details and version history unchanged', function () {
+    $company = acmeCompany([
+        'name' => 'Alma Stroy',
+        'bin' => '123456789012',
+        'contact_person' => 'Ada Contact',
+        'phone' => '+7 (700) 123-45-67',
+        'email' => 'office@acme.test',
+    ]);
+    $owner = ownerSuperAdmin();
+
+    signedInAs($owner)
+        ->postJson('/api/v1/admin/companies/'.$company->id.'/deactivate')
+        ->assertOk();
+
+    $timeZones = CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
+    $settings = CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
+
+    signedInAs($owner)
+        ->postJson('/api/v1/admin/companies/'.$company->id.'/reactivate')
+        ->assertOk()
+        ->assertJsonPath('data.is_active', true)
+        ->assertJsonPath('data.bin', '123456789012')
+        ->assertJsonPath('data.name', 'Alma Stroy');
+
+    $restored = $company->fresh();
+
+    expect($restored)->not->toBeNull()
+        ->and($restored->isActive())->toBeTrue()
+        ->and($restored->bin)->toBe('123456789012')
+        ->and($restored->contact_person)->toBe('Ada Contact')
+        ->and($restored->phone)->toBe('+7 (700) 123-45-67')
+        ->and($restored->email)->toBe('office@acme.test')
+        ->and($restored->name_normalized)->toBe('alma stroy');
+
+    expect(companyVersionSnapshots(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+        ->toBe(companyVersionSnapshots($timeZones))
+        ->and(companyVersionSnapshots(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+        ->toBe(companyVersionSnapshots($settings));
+
+    signedInAs($owner)
+        ->postJson('/api/v1/admin/companies/'.$company->id.'/reactivate')
+        ->assertOk()
+        ->assertJsonPath('data.is_active', true);
+
+    expect(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->count())->toBe($timeZones->count())
+        ->and(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->count())->toBe($settings->count());
 });

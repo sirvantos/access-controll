@@ -4,6 +4,7 @@ import type { Role } from '../api/types';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import AcceptInvitationPage from '../pages/AcceptInvitationPage.vue';
 import CompaniesPage from '../pages/CompaniesPage.vue';
+import CompanyProfilePage from '../pages/CompanyProfilePage.vue';
 import CompanyUsersPage from '../pages/CompanyUsersPage.vue';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage.vue';
 import HomePage from '../pages/HomePage.vue';
@@ -51,6 +52,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
                 meta: { roles: ['company_admin'] },
             },
             {
+                path: '/company',
+                component: CompanyProfilePage,
+                meta: { roles: ['company_admin', 'viewer'] },
+            },
+            {
                 path: '/companies',
                 component: CompaniesPage,
                 meta: { roles: ['super_admin'] },
@@ -87,7 +93,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         const roles = to.meta.roles;
 
         if (user !== null && roles !== undefined && !roles.includes(user.role)) {
-            return { path: '/' };
+            return { path: '/', state: { deniedRole: true } };
         }
 
         return true;

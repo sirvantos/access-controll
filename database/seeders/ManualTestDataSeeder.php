@@ -47,7 +47,10 @@ class ManualTestDataSeeder extends Seeder
     {
         return Company::query()->firstOrCreate(
             ['name' => $name],
-            ['deactivated_at' => null],
+            [
+                'deactivated_at' => null,
+                'name_normalized' => mb_strtolower($name),
+            ],
         );
     }
 

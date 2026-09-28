@@ -164,5 +164,18 @@ return [
         ],
     ],
     'attributes' => [
+        'name' => 'название',
+        'first_admin_email' => 'эл. почта первого администратора',
+        'time_zone' => 'часовой пояс',
+        'bin' => 'БИН',
+        'contact_person' => 'контактное лицо',
+        'phone' => 'телефон',
+        'email' => 'эл. почта',
+        'start_time' => 'время начала',
+        'end_time' => 'время окончания',
+        'working_days' => 'рабочие дни',
+        'break_duration_minutes' => 'длительность перерыва',
+        'lateness_grace_minutes' => 'льготный период опоздания',
+        'break_deducted' => 'вычитать перерыв',
     ],
 ];
