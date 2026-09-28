@@ -17,6 +17,8 @@ Write the code and the tests for every listed task before you finish. Follow the
 
 Do not run `make verify`. The orchestrator runs it once for the whole list. When it fails, the next attempt receives the log. When a reviewer rejects the list, the next attempt receives that review. When `assumptions` blocked approval, the next attempt receives those assumptions.
 
+A review finding that asks for work owned by a task that is not in the list is not yours. Do not write that code. If every finding is like that, change nothing and return `done`.
+
 Do not commit. Do not push.
 
 ## Writes

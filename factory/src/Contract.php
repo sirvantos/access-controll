@@ -59,9 +59,9 @@ final class Contract
 
     public function agentTimeout(): int
     {
-        $timeout = $this->data['agent_timeout_seconds'] ?? 1200;
+        $timeout = $this->data['agent_timeout_seconds'] ?? 4800;
 
-        return is_int($timeout) ? $timeout : 1200;
+        return is_int($timeout) ? $timeout : 4800;
     }
 
     /**
