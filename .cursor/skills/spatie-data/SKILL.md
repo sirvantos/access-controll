@@ -73,7 +73,7 @@ final class CreateCampaignData extends Data
 - ALWAYS use constructor property promotion with `readonly`
 - ALWAYS use typed properties (never untyped)
 - Group by domain: `App\Data\Campaigns\`, `App\Data\Auth\`, etc.
-- **ALWAYS use `Stringable` (not `string`) for text properties that originate from Form Request `$this->string()` calls** — this preserves the fluent chainable API and avoids falling back to native PHP string functions in Actions/Services. Use plain `string` only for properties that are never extracted via `$this->string()` (e.g., fixed enum-backed values, raw identifiers, or passwords).
+- **ALWAYS use `Stringable` (not `string`) for text properties that originate from Form Request `$this->string()` calls** — this preserves the fluent chainable API and avoids falling back to native PHP string functions in Actions/Services. Use plain `string` only for properties that are never extracted via `$this->string()` (e.g., fixed enum-backed values or raw identifiers).
 
 ### 2) Default values
 
@@ -223,14 +223,14 @@ Use `#[SensitiveParameter]` for passwords/tokens:
 use SensitiveParameter;
 
 public function __construct(
-    public readonly string $email,
-    #[SensitiveParameter] public readonly string $password,
+    public readonly Stringable $email,
+    #[SensitiveParameter] public readonly Stringable $password,
 ) {}
 ```
 
 ## Anti-patterns (avoid)
 
-- **Using `string` for text properties extracted via `$this->string()`**: use `Stringable` to preserve the fluent API; reserve plain `string` for identifiers, passwords, or values not extracted via `$this->string()`
+- **Using `string` for text properties extracted via `$this->string()`**: use `Stringable`. Call `->toString()` only at a scalar boundary (`BackedEnum::from()`, `hash()`, strict `in_array`, `===`). A neighboring `string` property is not a reason to convert in `toDto()`.
 - **Creating a new DTO when an existing DTO in the same domain has the same property set**: search first, reuse or rename
 - **Wrapping a single model/primitive in a DTO**: pass directly to the Action instead
 - **Manual field-by-field mapping when `Data::from($this->validated())` already matches the DTO**: prefer `Data::from(...)` unless extra context or reshaping is required

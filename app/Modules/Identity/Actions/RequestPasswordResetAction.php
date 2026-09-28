@@ -7,12 +7,13 @@ namespace App\Modules\Identity\Actions;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AccountEligibilityService;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Stringable;
 
 final class RequestPasswordResetAction
 {
     public function __construct(private AccountEligibilityService $eligibility) {}
 
-    public function __invoke(string $email): void
+    public function __invoke(Stringable $email): void
     {
         $user = User::findByEmail($email);
 

@@ -157,6 +157,9 @@ Helper functions are more concise, don't require imports, and follow Laravel con
 When a value is a `Stringable` instance (from Form Request's `$this->string()`):
 - ALWAYS prefer Stringable methods over native PHP string functions
 - Only use native functions (`strtolower`, `str_starts_with`, `str_contains`) when there is no Stringable alternative
+- Pass that object into the DTO. The property type is `Illuminate\Support\Stringable`, not `string`. Do not call `->toString()` in `toDto()` to feed a `string` parameter.
+- Call `->toString()` only where the callee's parameter is a scalar `string` and does not accept `Stringable`: `BackedEnum::from()`, `hash()`, `in_array(..., true)`, and `===` / `!==`. Eloquent, the query builder, interpolation, and concatenation accept the object.
+- A neighboring DTO that stores `string` is not a reason to keep the conversion.
 
 This ensures type consistency and leverages Laravel's fluent chainable API.
 

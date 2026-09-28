@@ -10,16 +10,18 @@ use App\Modules\Identity\Data\InviteUserData;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
 use App\Modules\Identity\PublicApi\Role;
+use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 
 final class FirstAdminInvitationsService implements FirstAdminInvitations
 {
     public function __construct(private InviteCompanyUserAction $inviteCompanyUser) {}
 
-    public function invite(int $companyId, string $email): void
+    public function invite(int $companyId, Stringable|string $email): void
     {
         try {
             $this->inviteCompanyUser->__invoke($companyId, new InviteUserData(
-                email: mb_strtolower($email),
+                email: $email instanceof Stringable ? $email->lower() : Str::of($email)->lower(),
                 role: Role::CompanyAdmin,
             ));
         } catch (EmailAlreadyRegisteredException) {

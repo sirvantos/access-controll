@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 
 class SignInThrottleService
 {
@@ -35,14 +36,14 @@ class SignInThrottleService
 
     private const int SECONDS_PER_MINUTE = 60;
 
-    public function isBlocked(string $email, string $ip): bool
+    public function isBlocked(Stringable|string $email, string $ip): bool
     {
         $email = $this->normalizedEmail($email);
 
         return Cache::has($this->accountBlockKey($email)) || Cache::has($this->sourceBlockKey($ip));
     }
 
-    public function recordBlockedAttempt(string $email, ?int $userId, string $ip): void
+    public function recordBlockedAttempt(Stringable|string $email, ?int $userId, string $ip): void
     {
         $this->writeEvent(
             SignInSecurityEventType::AttemptWhileBlocked,
@@ -52,7 +53,7 @@ class SignInThrottleService
         );
     }
 
-    public function recordFailure(string $email, ?int $userId, string $ip): void
+    public function recordFailure(Stringable|string $email, ?int $userId, string $ip): void
     {
         $email = $this->normalizedEmail($email);
 
@@ -61,7 +62,7 @@ class SignInThrottleService
         $this->recordSourceFailure($email, $userId, $ip);
     }
 
-    public function recordSuccess(string $email): void
+    public function recordSuccess(Stringable|string $email): void
     {
         Cache::forget($this->accountFailuresKey($this->normalizedEmail($email)));
     }
@@ -121,9 +122,9 @@ class SignInThrottleService
         ]);
     }
 
-    private function normalizedEmail(string $email): string
+    private function normalizedEmail(Stringable|string $email): string
     {
-        return Str::lower($email);
+        return ($email instanceof Stringable ? $email->lower() : Str::of($email)->lower())->toString();
     }
 
     private function accountFailuresKey(string $email): string

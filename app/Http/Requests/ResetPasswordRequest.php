@@ -31,9 +31,9 @@ final class ResetPasswordRequest extends FormRequest
     public function toDto(): PasswordResetData
     {
         return new PasswordResetData(
-            email: $this->string('email')->lower()->toString(),
-            token: $this->string('token')->toString(),
-            password: $this->string('password')->toString(),
+            email: $this->string('email')->lower(),
+            token: $this->string('token'),
+            password: $this->string('password'),
         );
     }
 }

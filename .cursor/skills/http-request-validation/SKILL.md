@@ -210,7 +210,7 @@ $column = in_array($data->sort->toString(), $sortable, true)
     : 'name';
 ```
 
-If the repo's DTOs for a request family already use plain `string` properties, follow that local pattern instead of forcing a conversion to `Stringable`.
+Do not keep `->toString()` because a neighboring DTO in the same domain stores `string`. New and changed text properties extracted with `$this->string()` are `Stringable`.
 
 ### 6) Prefer Enums + typed constants (no magic)
 

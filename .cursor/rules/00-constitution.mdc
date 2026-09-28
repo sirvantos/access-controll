@@ -12,3 +12,4 @@ The acceptance rules live in `.specify/memory/constitution.md`. This file is a d
 - An endpoint test walks Controller → Form Request → Action/Service → Resource. Mocking that Action or Service does not count. Fake external I/O (`Http::fake()`, `Storage::fake()`, and the matching Laravel fake).
 - Reject a new Composer or npm dependency that `plan.md` does not justify, a public contract change the task's `spec.md` does not require, a lowered or skipped Larastan/Pint gate, and `TODO` / `FIXME` / placeholder bodies.
 - A task is done only when the Definition of Done in the constitution is true: PHP gates, or the frontend gates for a frontend-only change, plus acceptance scenarios.
+- Text from `$this->string()` stays a `Stringable` on the DTO. Do not call `->toString()` in `toDto()`. Convert only for `BackedEnum::from()`, `hash()`, `in_array` with strict comparison, or `===`.

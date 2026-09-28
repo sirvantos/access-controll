@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
+use Illuminate\Support\Stringable;
 
 #[Fillable(['email', 'password', 'role', 'company_id', 'deactivated_at', 'session_version', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
@@ -48,12 +50,14 @@ class User extends Authenticatable implements Actor
         $this->notify(new ResetPasswordNotification($token));
     }
 
-    public static function findByEmail(string $email): ?self
+    public static function findByEmail(Stringable|string $email): ?self
     {
-        return self::query()->whereRaw('lower(email) = ?', [mb_strtolower($email)])->first();
+        return self::query()->whereRaw('lower(email) = ?', [
+            $email instanceof Stringable ? $email->lower() : Str::of($email)->lower(),
+        ])->first();
     }
 
-    public static function emailIsRegistered(string $email): bool
+    public static function emailIsRegistered(Stringable|string $email): bool
     {
         return self::findByEmail($email) instanceof self;
     }

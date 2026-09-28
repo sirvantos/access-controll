@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Support\Validation\EmailRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Stringable;
 
 final class EmailRequest extends FormRequest
 {
@@ -24,8 +25,8 @@ final class EmailRequest extends FormRequest
         ];
     }
 
-    public function emailAddress(): string
+    public function emailAddress(): Stringable
     {
-        return $this->string('email')->lower()->toString();
+        return $this->string('email')->lower();
     }
 }

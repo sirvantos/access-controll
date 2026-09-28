@@ -13,7 +13,7 @@ final class AcceptInvitationController extends Controller
 {
     public function __invoke(AcceptInvitationRequest $request, string $token, AcceptInvitationAction $action): OkResource
     {
-        $action($token, $request->string('password')->toString());
+        $action($token, $request->string('password'));
 
         return new OkResource(null);
     }

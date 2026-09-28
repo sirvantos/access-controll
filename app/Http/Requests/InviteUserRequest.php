@@ -31,7 +31,7 @@ final class InviteUserRequest extends FormRequest
     public function toDto(): InviteUserData
     {
         return new InviteUserData(
-            email: $this->string('email')->lower()->toString(),
+            email: $this->string('email')->lower(),
             role: Role::from($this->string('role')->toString()),
         );
     }

@@ -29,8 +29,8 @@ final class SignInRequest extends FormRequest
     public function toDto(): SignInAttempt
     {
         return new SignInAttempt(
-            email: $this->string('email')->lower()->toString(),
-            password: $this->string('password')->toString(),
+            email: $this->string('email')->lower(),
+            password: $this->string('password'),
             ip: (string) $this->ip(),
         );
     }

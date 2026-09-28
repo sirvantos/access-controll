@@ -31,8 +31,8 @@ final class CreateCompanyRequest extends FormRequest
     public function toDto(): CreateCompanyData
     {
         return new CreateCompanyData(
-            name: $this->string('name')->toString(),
-            firstAdminEmail: $this->string('first_admin_email')->lower()->toString(),
+            name: $this->string('name'),
+            firstAdminEmail: $this->string('first_admin_email')->lower(),
         );
     }
 }

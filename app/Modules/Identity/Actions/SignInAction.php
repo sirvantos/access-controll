@@ -12,6 +12,7 @@ use App\Modules\Identity\PublicApi\Actor;
 use App\Modules\Identity\Services\AccountEligibilityService;
 use App\Modules\Identity\Services\SignInThrottleService;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Stringable;
 use Illuminate\Support\Timebox;
 
 final class SignInAction
@@ -62,15 +63,17 @@ final class SignInAction
         return $user;
     }
 
-    private function passwordMatches(string $password, ?User $user): bool
+    private function passwordMatches(Stringable $password, ?User $user): bool
     {
+        $plainPassword = $password->toString();
+
         if (! $user instanceof User) {
-            Hash::check($password, self::UNKNOWN_EMAIL_PASSWORD_HASH);
+            Hash::check($plainPassword, self::UNKNOWN_EMAIL_PASSWORD_HASH);
 
             return false;
         }
 
-        return Hash::check($password, $user->password);
+        return Hash::check($plainPassword, $user->password);
     }
 
     private function blocked(SignInAttempt $attempt, ?int $userId): SignInBlockedException

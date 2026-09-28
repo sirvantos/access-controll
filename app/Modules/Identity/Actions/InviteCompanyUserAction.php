@@ -38,7 +38,7 @@ final class InviteCompanyUserAction
                 'expires_at' => now()->addDays(self::INVITATION_LIFETIME_DAYS),
             ]);
 
-            Notification::route('mail', $data->email)->notify(new InvitationNotification(
+            Notification::route('mail', $data->email->toString())->notify(new InvitationNotification(
                 token: $generated['token'],
                 role: $data->role,
                 expiresAt: $invitation->expires_at,

@@ -11,12 +11,13 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\InvitationTokenService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Stringable;
 
 final class AcceptInvitationAction
 {
     public function __construct(private InvitationTokenService $tokens) {}
 
-    public function __invoke(string $token, string $password): void
+    public function __invoke(string $token, Stringable $password): void
     {
         $invitation = $this->tokens->findByToken($token);
 
