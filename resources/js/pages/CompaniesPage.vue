@@ -23,10 +23,23 @@ import { ApiError } from '../api/client';
 import type { PaginationMeta, Role } from '../api/types';
 import { useSelectedCompany } from '../composables/useSelectedCompany';
 import { t } from '../utils/i18n';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { NativeSelect } from '../components/ui/native-select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '../components/ui/table';
 
 const route = useRoute();
 const router = useRouter();
-const { setSelectedCompany, clearSelectedCompany } = useSelectedCompany();
+const { setSelectedCompany, clearSelectedCompany, selectedCompany } = useSelectedCompany();
 const companies = ref<Company[]>([]);
 const invitations = ref<Record<number, PendingInvitation[]>>({});
 const meta = ref<PaginationMeta | null>(null);
@@ -112,16 +125,6 @@ function applySearch(value: string): void {
         path: '/companies',
         query: listQuery(page.value, value),
     });
-}
-
-function onSearchInput(event: Event): void {
-    const target = event.target;
-
-    if (!(target instanceof HTMLInputElement)) {
-        return;
-    }
-
-    applySearch(target.value);
 }
 
 function listQuery(nextPage: number, nextSearch: string): Record<string, string> {
@@ -276,214 +279,212 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
 
 <template>
     <section class="flex flex-col gap-4">
-        <h1 class="text-xl font-semibold">{{ t('companies.title') }}</h1>
+        <h1 class="text-xl font-semibold text-slate-900">{{ t('companies.title') }}</h1>
         <form class="flex max-w-sm flex-col gap-3" @submit.prevent="create">
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.name') }}
-                <input
+                <Input
                     v-model="companyName"
                     data-testid="company-name"
                     type="text"
                     name="name"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <p v-if="nameError" data-testid="company-name-error" class="text-sm text-red-700">
+            </Label>
+            <p v-if="nameError" data-testid="company-name-error" class="text-sm text-destructive">
                 {{ nameError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.timeZone') }}
-                <select
+                <NativeSelect
                     v-model="timeZone"
                     data-testid="company-time-zone"
                     name="time_zone"
-                    class="rounded border border-zinc-300 px-3 py-2"
+                    class="w-full"
                 >
                     <option v-for="zone in timeZones" :key="zone" :value="zone">{{ zone }}</option>
-                </select>
-            </label>
+                </NativeSelect>
+            </Label>
             <p
                 v-if="timeZoneError"
                 data-testid="company-time-zone-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ timeZoneError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.bin') }}
-                <input
-                    v-model="bin"
-                    data-testid="company-bin"
-                    type="text"
-                    name="bin"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                />
-            </label>
-            <p v-if="binError" data-testid="company-bin-error" class="text-sm text-red-700">
+                <Input v-model="bin" data-testid="company-bin" type="text" name="bin" />
+            </Label>
+            <p v-if="binError" data-testid="company-bin-error" class="text-sm text-destructive">
                 {{ binError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.contactPerson') }}
-                <input
+                <Input
                     v-model="contactPerson"
                     data-testid="company-contact-person"
                     type="text"
                     name="contact_person"
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="contactPersonError"
                 data-testid="company-contact-person-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ contactPersonError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.phone') }}
-                <input
-                    v-model="phone"
-                    data-testid="company-phone"
-                    type="text"
-                    name="phone"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                />
-            </label>
-            <p v-if="phoneError" data-testid="company-phone-error" class="text-sm text-red-700">
+                <Input v-model="phone" data-testid="company-phone" type="text" name="phone" />
+            </Label>
+            <p v-if="phoneError" data-testid="company-phone-error" class="text-sm text-destructive">
                 {{ phoneError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.email') }}
-                <input
+                <Input
                     v-model="companyEmail"
                     data-testid="company-email"
                     type="email"
                     name="email"
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="companyEmailError"
                 data-testid="company-email-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ companyEmailError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.firstAdminEmail') }}
-                <input
+                <Input
                     v-model="firstAdminEmail"
                     data-testid="first-admin-email"
                     type="email"
                     name="first_admin_email"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="firstAdminEmailError"
                 data-testid="first-admin-email-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ firstAdminEmailError }}
             </p>
-            <button
-                type="submit"
-                data-testid="create-company"
-                class="rounded bg-zinc-900 px-3 py-2 text-white"
-            >
+            <Button type="submit" data-testid="create-company">
                 {{ t('companies.create') }}
-            </button>
+            </Button>
         </form>
-        <label class="flex max-w-sm flex-col gap-1 text-sm">
+        <Label class="flex max-w-sm flex-col items-stretch gap-1">
             {{ t('companies.search') }}
-            <input
-                :value="search"
+            <Input
+                :model-value="search"
                 data-testid="company-search"
                 type="search"
                 name="search"
-                class="rounded border border-zinc-300 px-3 py-2"
-                @input="onSearchInput"
+                @update:model-value="applySearch(String($event))"
             />
-        </label>
+        </Label>
         <p
             v-if="search !== '' && companies.length === 0"
             data-testid="companies-empty"
-            class="text-sm"
+            class="text-sm text-slate-900"
         >
             {{ t('companies.empty') }}
         </p>
-        <table class="w-full text-left text-sm">
-            <thead>
-                <tr>
-                    <th class="py-2">{{ t('companies.name') }}</th>
-                    <th class="py-2">{{ t('companies.bin') }}</th>
-                    <th class="py-2">{{ t('companies.state') }}</th>
-                    <th class="py-2">{{ t('companies.created') }}</th>
-                    <th class="py-2">{{ t('companies.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="company in companies" :key="company.id" data-testid="company-row">
-                    <td class="py-2">{{ company.name }}</td>
-                    <td class="py-2" :data-testid="`company-bin-${company.id}`">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>{{ t('companies.name') }}</TableHead>
+                    <TableHead>{{ t('companies.bin') }}</TableHead>
+                    <TableHead>{{ t('companies.state') }}</TableHead>
+                    <TableHead>{{ t('companies.created') }}</TableHead>
+                    <TableHead>{{ t('companies.actions') }}</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow
+                    v-for="company in companies"
+                    :key="company.id"
+                    data-testid="company-row"
+                    :class="selectedCompany?.id === company.id ? 'bg-slate-100' : undefined"
+                >
+                    <TableCell>{{ company.name }}</TableCell>
+                    <TableCell :data-testid="`company-bin-${company.id}`">
                         {{ company.bin ?? '' }}
-                    </td>
-                    <td class="py-2">{{ stateLabel(company) }}</td>
-                    <td class="py-2">{{ company.created_at }}</td>
-                    <td class="py-2">
-                        <button
-                            type="button"
-                            :data-testid="`select-company-${company.id}`"
-                            class="mr-2 rounded border border-zinc-300 px-3 py-1"
-                            @click="select(company)"
-                        >
-                            {{ t('companies.select') }}
-                        </button>
-                        <button
-                            v-if="company.is_active"
-                            type="button"
-                            :data-testid="`deactivate-company-${company.id}`"
-                            class="rounded border border-zinc-300 px-3 py-1"
-                            @click="deactivate(company.id)"
-                        >
-                            {{ t('companies.deactivate') }}
-                        </button>
-                        <button
-                            v-else
-                            type="button"
-                            :data-testid="`reactivate-company-${company.id}`"
-                            class="rounded border border-zinc-300 px-3 py-1"
-                            @click="reactivate(company.id)"
-                        >
-                            {{ t('companies.reactivate') }}
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <button
+                    </TableCell>
+                    <TableCell>
+                        <Badge v-if="company.is_active" variant="success">
+                            {{ stateLabel(company) }}
+                        </Badge>
+                        <Badge v-else variant="secondary">
+                            {{ stateLabel(company) }}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>{{ company.created_at }}</TableCell>
+                    <TableCell>
+                        <div class="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :data-testid="`select-company-${company.id}`"
+                                @click="select(company)"
+                            >
+                                {{ t('companies.select') }}
+                            </Button>
+                            <Button
+                                v-if="company.is_active"
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                :data-testid="`deactivate-company-${company.id}`"
+                                @click="deactivate(company.id)"
+                            >
+                                {{ t('companies.deactivate') }}
+                            </Button>
+                            <Button
+                                v-else
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :data-testid="`reactivate-company-${company.id}`"
+                                @click="reactivate(company.id)"
+                            >
+                                {{ t('companies.reactivate') }}
+                            </Button>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
+        <Button
             type="button"
+            variant="outline"
+            size="sm"
             data-testid="clear-selected-company"
-            class="w-fit rounded border border-zinc-300 px-3 py-1"
+            class="w-fit"
             @click="clearSelection"
         >
             {{ t('companies.clear') }}
-        </button>
+        </Button>
         <section
             v-for="company in awaitingCompanies"
             :key="`invitations-${company.id}`"
             :data-testid="`first-admin-invitations-${company.id}`"
             class="flex flex-col gap-2"
         >
-            <h2 class="text-lg font-semibold">
+            <h2 class="text-lg font-semibold text-slate-900">
                 {{ t('companies.firstAdminInvitations', { name: company.name }) }}
             </h2>
             <p
                 v-if="invitationErrors[company.id]"
                 :data-testid="`invitation-error-${company.id}`"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ invitationErrors[company.id] }}
             </p>
@@ -492,84 +493,85 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
                 :data-testid="`replacement-form-${company.id}`"
                 @submit.prevent="inviteReplacement(company.id)"
             >
-                <label class="flex flex-col gap-1 text-sm">
+                <Label class="flex flex-col items-stretch gap-1">
                     {{ t('companies.replacementEmail') }}
-                    <input
+                    <Input
                         v-model="replacementEmails[company.id]"
                         :data-testid="`replacement-email-${company.id}`"
                         type="email"
                         name="email"
                         required
-                        class="rounded border border-zinc-300 px-3 py-2"
                     />
-                </label>
-                <button
-                    type="submit"
-                    :data-testid="`invite-replacement-${company.id}`"
-                    class="rounded bg-zinc-900 px-3 py-2 text-white"
-                >
+                </Label>
+                <Button type="submit" :data-testid="`invite-replacement-${company.id}`">
                     {{ t('companies.inviteReplacement') }}
-                </button>
+                </Button>
             </form>
-            <table class="w-full text-left text-sm">
-                <thead>
-                    <tr>
-                        <th class="py-2">{{ t('companies.email') }}</th>
-                        <th class="py-2">{{ t('companies.role') }}</th>
-                        <th class="py-2">{{ t('companies.expires') }}</th>
-                        <th class="py-2">{{ t('companies.actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>{{ t('companies.email') }}</TableHead>
+                        <TableHead>{{ t('companies.role') }}</TableHead>
+                        <TableHead>{{ t('companies.expires') }}</TableHead>
+                        <TableHead>{{ t('companies.actions') }}</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow
                         v-for="invitation in companyInvitations(company.id)"
                         :key="invitation.id"
                         data-testid="invitation-row"
                     >
-                        <td class="py-2">{{ invitation.email }}</td>
-                        <td class="py-2">{{ roleLabel(invitation.role) }}</td>
-                        <td class="py-2">{{ invitation.expires_at }}</td>
-                        <td class="py-2">
-                            <button
-                                type="button"
-                                :data-testid="`resend-invitation-${invitation.id}`"
-                                class="rounded border border-zinc-300 px-3 py-1"
-                                @click="resend(company.id, invitation.id)"
-                            >
-                                {{ t('companies.resend') }}
-                            </button>
-                            <button
-                                type="button"
-                                :data-testid="`revoke-invitation-${invitation.id}`"
-                                class="ml-2 rounded border border-zinc-300 px-3 py-1"
-                                @click="revoke(company.id, invitation.id)"
-                            >
-                                {{ t('companies.revoke') }}
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        <TableCell>{{ invitation.email }}</TableCell>
+                        <TableCell>{{ roleLabel(invitation.role) }}</TableCell>
+                        <TableCell>{{ invitation.expires_at }}</TableCell>
+                        <TableCell>
+                            <div class="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    :data-testid="`resend-invitation-${invitation.id}`"
+                                    @click="resend(company.id, invitation.id)"
+                                >
+                                    {{ t('companies.resend') }}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    :data-testid="`revoke-invitation-${invitation.id}`"
+                                    @click="revoke(company.id, invitation.id)"
+                                >
+                                    {{ t('companies.revoke') }}
+                                </Button>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
         </section>
         <div v-if="meta !== null && meta.last_page > 1" class="flex gap-2">
-            <button
+            <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 data-testid="previous-page"
-                class="rounded border border-zinc-300 px-3 py-1"
                 :disabled="meta.current_page <= 1"
                 @click="showPage(meta.current_page - 1)"
             >
                 {{ t('companies.previous') }}
-            </button>
-            <button
+            </Button>
+            <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 data-testid="next-page"
-                class="rounded border border-zinc-300 px-3 py-1"
                 :disabled="meta.current_page >= meta.last_page"
                 @click="showPage(meta.current_page + 1)"
             >
                 {{ t('companies.next') }}
-            </button>
+            </Button>
         </div>
     </section>
 </template>

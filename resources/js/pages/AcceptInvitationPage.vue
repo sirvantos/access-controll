@@ -4,6 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { ApiError } from '../api/client';
 import { acceptInvitation, showInvitation, type InvitationPreview } from '../api/invitations';
 import { t } from '../utils/i18n';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const route = useRoute();
 const router = useRouter();
@@ -92,32 +95,33 @@ function roleLabel(role: InvitationPreview['role']): string {
 
 <template>
     <section class="mx-auto flex max-w-sm flex-col gap-4">
-        <p v-if="invalid" data-testid="invitation-invalid">{{ t('invitations.noLongerValid') }}</p>
+        <p v-if="invalid" data-testid="invitation-invalid" class="text-sm text-destructive">
+            {{ t('invitations.noLongerValid') }}
+        </p>
         <form v-else-if="preview" class="flex flex-col gap-4" @submit.prevent="submit">
-            <p data-testid="invitation-email">{{ preview.email }}</p>
-            <p data-testid="invitation-role">{{ roleLabel(preview.role) }}</p>
-            <label class="flex flex-col gap-1 text-sm">
+            <p data-testid="invitation-email" class="text-sm text-foreground">
+                {{ preview.email }}
+            </p>
+            <p data-testid="invitation-role" class="text-sm text-foreground">
+                {{ roleLabel(preview.role) }}
+            </p>
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('auth.password') }}
-                <input
+                <Input
                     v-model="password"
                     data-testid="password"
                     type="password"
                     name="password"
                     autocomplete="new-password"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <p v-if="passwordError" data-testid="password-error" class="text-sm text-red-700">
+            </Label>
+            <p v-if="passwordError" data-testid="password-error" class="text-sm text-destructive">
                 {{ passwordError }}
             </p>
-            <button
-                type="submit"
-                data-testid="accept-invitation"
-                class="rounded bg-zinc-900 px-3 py-2 text-white"
-            >
+            <Button type="submit" data-testid="accept-invitation">
                 {{ t('invitations.accept') }}
-            </button>
+            </Button>
         </form>
     </section>
 </template>

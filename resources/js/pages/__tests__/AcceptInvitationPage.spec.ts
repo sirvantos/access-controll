@@ -39,6 +39,17 @@ describe('AcceptInvitationPage', () => {
         expect(wrapper.get('[data-testid="invitation-role"]').text()).toBe(
             t('roles.company_admin'),
         );
+        expect(wrapper.get('[data-testid="password"]').element).toBeInstanceOf(HTMLInputElement);
+        expect(wrapper.get('[data-testid="accept-invitation"]').element).toBeInstanceOf(
+            HTMLButtonElement,
+        );
+        expect(wrapper.get('[data-testid="accept-invitation"]').text()).toBe(
+            t('invitations.accept'),
+        );
+        expect(wrapper.get('[data-testid="accept-invitation"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="password"]').attributes('data-slot')).toBe('input');
     });
 
     it('shows that the invitation is no longer valid on 410', async () => {
@@ -48,6 +59,9 @@ describe('AcceptInvitationPage', () => {
 
         expect(wrapper.get('[data-testid="invitation-invalid"]').text()).toBe(
             t('invitations.noLongerValid'),
+        );
+        expect(wrapper.get('[data-testid="invitation-invalid"]').classes().join(' ')).toContain(
+            'text-destructive',
         );
         expect(wrapper.find('form').exists()).toBe(false);
     });
@@ -66,6 +80,9 @@ describe('AcceptInvitationPage', () => {
 
         expect(acceptInvitation).toHaveBeenCalledWith(token, 'short');
         expect(wrapper.get('[data-testid="password-error"]').text()).toBe('too-short');
+        expect(wrapper.get('[data-testid="password-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
     });
 
     it('goes to sign-in with the invited email after acceptance', async () => {

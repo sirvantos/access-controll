@@ -4,6 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { resetPassword } from '../api/auth';
 import { ApiError } from '../api/client';
 import { t } from '../utils/i18n';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const route = useRoute();
 const router = useRouter();
@@ -41,32 +44,31 @@ async function submit(): Promise<void> {
 
 <template>
     <form class="mx-auto flex max-w-sm flex-col gap-4" @submit.prevent="submit">
-        <p v-if="tokenInvalid" data-testid="reset-token-error" class="text-sm text-red-700">
-            <RouterLink to="/forgot-password" data-testid="request-new-link" class="underline">
+        <p v-if="tokenInvalid" data-testid="reset-token-error" class="text-sm text-destructive">
+            <RouterLink
+                to="/forgot-password"
+                data-testid="request-new-link"
+                class="text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
                 {{ t('auth.requestNewLink') }}
             </RouterLink>
         </p>
-        <label class="flex flex-col gap-1 text-sm">
+        <Label class="flex flex-col items-stretch gap-1">
             {{ t('auth.newPassword') }}
-            <input
+            <Input
                 v-model="password"
                 data-testid="password"
                 type="password"
                 name="password"
                 autocomplete="new-password"
                 required
-                class="rounded border border-zinc-300 px-3 py-2"
             />
-        </label>
-        <p v-if="passwordError" data-testid="password-error" class="text-sm text-red-700">
+        </Label>
+        <p v-if="passwordError" data-testid="password-error" class="text-sm text-destructive">
             {{ passwordError }}
         </p>
-        <button
-            type="submit"
-            data-testid="reset-password"
-            class="rounded bg-zinc-900 px-3 py-2 text-white"
-        >
+        <Button type="submit" data-testid="reset-password">
             {{ t('auth.resetPassword') }}
-        </button>
+        </Button>
     </form>
 </template>

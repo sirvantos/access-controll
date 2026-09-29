@@ -5,6 +5,7 @@ import type { WorkingDaySettings } from '../../api/adminCompanies';
 import { ApiError } from '../../api/client';
 import type { CompanyProfile } from '../../api/companyProfile';
 import type { CurrentUser } from '../../api/types';
+import { nativeCheckboxClass } from '../../components/ui/checkbox';
 import { t } from '../../utils/i18n';
 
 const {
@@ -84,6 +85,12 @@ describe('CompanyProfilePage', () => {
         const wrapper = await mountPage();
 
         expect(wrapper.get('[data-testid="company-name"]').element).toHaveProperty('value', 'Acme');
+        expect(wrapper.get('[data-testid="company-time-zone"]').element).toBeInstanceOf(
+            HTMLSelectElement,
+        );
+        expect(wrapper.get('[data-testid="save-company-profile"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
         expect(wrapper.get('h1').text()).toBe(t('companyProfile.title'));
 
         await wrapper.get('[data-testid="company-name"]').setValue('Alma Stroy');
@@ -133,6 +140,12 @@ describe('CompanyProfilePage', () => {
         expect(wrapper.get('[data-testid="company-contact-person-error"]').text()).toBe('contact');
         expect(wrapper.get('[data-testid="company-phone-error"]').text()).toBe('phone');
         expect(wrapper.get('[data-testid="company-email-error"]').text()).toBe('email');
+        expect(wrapper.get('[data-testid="company-name-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
+        expect(wrapper.get('[data-testid="company-email-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
     });
 
     it('saves working day settings', async () => {
@@ -143,6 +156,15 @@ describe('CompanyProfilePage', () => {
             '09:00',
         );
         expect(wrapper.get('h2').text()).toBe(t('companyProfile.settingsTitle'));
+        expect(
+            wrapper.get('[data-testid="save-working-day-settings"]').classes().join(' '),
+        ).toContain('bg-primary');
+        expect(wrapper.get('[data-testid="working-day-monday"]').classes().join(' ')).toBe(
+            nativeCheckboxClass,
+        );
+        expect(wrapper.get('[data-testid="break-deducted"]').classes().join(' ')).toBe(
+            nativeCheckboxClass,
+        );
 
         await wrapper.get('[data-testid="working-day-start"]').setValue('08:00');
         await wrapper.get('[data-testid="break-deducted"]').setValue(false);
@@ -186,6 +208,12 @@ describe('CompanyProfilePage', () => {
         expect(wrapper.get('[data-testid="break-duration-error"]').text()).toBe('break');
         expect(wrapper.get('[data-testid="break-deducted-error"]').text()).toBe('deducted');
         expect(wrapper.get('[data-testid="lateness-grace-error"]').text()).toBe('grace');
+        expect(wrapper.get('[data-testid="working-day-start-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
+        expect(wrapper.get('[data-testid="working-days-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
     });
 
     it('shows the same values with no save controls for a viewer', async () => {
@@ -216,6 +244,9 @@ describe('CompanyProfilePage', () => {
             true,
         );
         expect(wrapper.get('[data-testid="break-deducted"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('[data-testid="break-deducted"]').classes().join(' ')).toBe(
+            nativeCheckboxClass,
+        );
         expect(wrapper.get('[data-testid="lateness-grace"]').text()).toBe('0');
         expect(wrapper.find('[data-testid="save-company-profile"]').exists()).toBe(false);
         expect(wrapper.find('[data-testid="save-working-day-settings"]').exists()).toBe(false);

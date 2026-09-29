@@ -23,5 +23,5 @@ onMounted(() => {
 </script>
 
 <template>
-    <p data-testid="home-placeholder">{{ t('home.placeholder') }}</p>
+    <p data-testid="home-placeholder" class="text-foreground">{{ t('home.placeholder') }}</p>
 </template>

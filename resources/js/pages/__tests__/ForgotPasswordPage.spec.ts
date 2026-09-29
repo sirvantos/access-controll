@@ -23,6 +23,14 @@ describe('ForgotPasswordPage', () => {
 
         const wrapper = await mountPage();
 
+        expect(wrapper.get('[data-testid="email"]').element).toBeInstanceOf(HTMLInputElement);
+        expect(wrapper.get('[data-testid="send-reset-link"]').element.tagName).toBe('BUTTON');
+        expect(wrapper.get('[data-testid="send-reset-link"]').text()).toBe(t('auth.sendResetLink'));
+        expect(wrapper.get('[data-testid="send-reset-link"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="email"]').attributes('data-slot')).toBe('input');
+
         await wrapper.get('[data-testid="email"]').setValue('admin@acme.test');
         await wrapper.get('form').trigger('submit');
         await flushPromises();
@@ -45,6 +53,9 @@ describe('ForgotPasswordPage', () => {
         await flushPromises();
 
         expect(wrapper.get('[data-testid="email-error"]').text()).toBe('invalid');
+        expect(wrapper.get('[data-testid="email-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
         expect(wrapper.find('[data-testid="reset-confirmation"]').exists()).toBe(false);
     });
 });

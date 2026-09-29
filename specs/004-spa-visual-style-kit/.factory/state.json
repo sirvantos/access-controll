@@ -2,14 +2,207 @@
     "feature_dir": "specs/004-spa-visual-style-kit",
     "branch": "004-spa-visual-style-kit",
     "description": "# SPA visual style kit\n\nRestyle the Vue 3 SPA for this multi-company access-control CRM so it looks like a calm, modern B2B product UI, without changing authentication, roles, tenancy, or API behaviour.\n\n## Goal\n\nReplace the current plain white/zinc utility look with a coherent visual system that operators can trust for daily work: companies, users, invitations, company profile, working-day settings, and sign-in flows. The service stores sensitive personal and biometric data; the UI must feel precise and restrained, not like a marketing landing page.\n\n## Chosen visual system\n\nUse **shadcn-vue** components in the **New York** style, built on the existing **Vue 3 + Tailwind CSS v4** stack.\n\nTheme tokens:\n\n- Surfaces: cool slate background (`slate-50` app chrome, white panels)\n- Text: `slate-900` primary, `slate-500` muted\n- Accent: `blue-600` for primary actions, focus rings, and links\n- Danger: `red-600` for deactivate, revoke, and validation errors\n- Success / active: `emerald-600` for positive state labels such as Active\n- Radius: small (about 6\u20138px), no pill-shaped controls\n- Elevation: minimal; prefer borders over heavy shadows\n- Typography: **IBM Plex Sans** for UI text (not Inter, Roboto, Arial, or the browser system stack)\n\nDo **not** use purple-on-white gradients, warm cream paper themes with serif display type, terracotta accents, dark-mode-by-default, glow effects, or oversized soft shadows.\n\n## What must change\n\n1. Introduce a shared theme (CSS variables / Tailwind theme) and base primitives needed by existing screens: buttons, text inputs, selects, tables, inline errors/alerts, and compact header chrome.\n2. Restyle the app shell (`App` layout and header) so spacing, type, and navigation match the theme.\n3. Restyle the main operator screens that already exist: sign-in / password flows, companies list and create form, company users and invitations, company profile, working-day settings, and guest invitation acceptance where present.\n4. Keep Russian and English UI copy via existing locale keys; do not hard-code new user-facing strings in components.\n5. Preserve current routes, roles, and behaviour. After a super admin selects a company, the selected company name must remain clearly visible in the header, and company-data navigation must still appear only when a usable selection exists.\n6. Selecting a company must remain an obvious success for the operator: the header reflects the selected company immediately; the companies table may also mark the selected row lightly, but header feedback is mandatory.\n\n## What must not change\n\n- Backend APIs, Form Requests, Actions, Resources, migrations, and OpenAPI contracts\n- Auth strategy (Sanctum session / current token approach)\n- Role rules and company isolation rules\n- Existing test semantics for API behaviour; update frontend tests only where markup/classes or visible structure change\n- Do not replace the SPA with a third-party admin template wholesale\n- Do not add an unrelated component library (PrimeVue, Vuetify, Naive UI, DaisyUI themes, etc.) alongside shadcn-vue\n\n## Acceptance ideas for the author\n\n- A signed-in company admin sees consistent buttons, form fields, and tables across company users and profile pages.\n- A super admin on `/companies` sees the new theme; after Select, the header shows the selected company name and company-data links without a full page reload.\n- Guest sign-in and invitation pages use the same typography and accent colour.\n- Keyboard focus states are visible on primary controls.\n- `make verify` stays green after the restyle.\n\n## Out of scope\n\n- New business features (employees, terminals, reports UI beyond what already exists)\n- Dark mode toggle\n- Mobile-native redesign (layouts may remain desktop-first, but must not break narrow widths already in use)\n- Rebranding with a custom logo asset beyond typography and colour tokens",
-    "next": "analyze",
+    "next": "converge",
     "stop": null,
     "lock": {
-        "pid": 73921,
-        "at": "2026-09-29T14:55:02+00:00"
+        "pid": 9574,
+        "at": "2026-09-29T16:17:04+00:00"
     },
     "converge_rounds": 0,
-    "tasks": [],
+    "tasks": {
+        "T001": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "7015aaa4-0486-4000-849d-f69ed93db41d",
+            "spec_hash": "f181bc815ab9a31b02ea24dfd1829b2cbf2edf916d562193d67e976ee3af36b4"
+        },
+        "T002": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "7015aaa4-0486-4000-849d-f69ed93db41d",
+            "spec_hash": "c28f535752bc4d542d7765143ef5b7376a6e264d46fc271f29902067fa644ce3"
+        },
+        "T003": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "7015aaa4-0486-4000-849d-f69ed93db41d",
+            "spec_hash": "547aa2e6b5964aa8a0821f8d1f1a85d4872402b828376d7629809a8899905d6a"
+        },
+        "T004": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "7015aaa4-0486-4000-849d-f69ed93db41d",
+            "spec_hash": "6beffb26a295fbfec43d751429c82c2580f43734631b3011824bb4fb54581b1c"
+        },
+        "T005": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "7015aaa4-0486-4000-849d-f69ed93db41d",
+            "spec_hash": "1477f36dbf939d4c42838548c873ef92dc2c3475562680a6f10946d39ed61672"
+        },
+        "T006": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "c009def9-74d3-46ad-873a-3d7de6c69456",
+            "spec_hash": "c32b1d73e191dd56915d94fcf2cbcfb3a0760f4fe6bc82def4997e3f9ef2678a"
+        },
+        "T007": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "c009def9-74d3-46ad-873a-3d7de6c69456",
+            "spec_hash": "24dcf6a4a49281e495c6ac0260e22740cdf6f39bf7e9c3371a2da6059f6e54c3"
+        },
+        "T008": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "c009def9-74d3-46ad-873a-3d7de6c69456",
+            "spec_hash": "a64fe954b1d8bf77f75d806e6d2d299049bb1049388cfacb4aa744fb60011cd4"
+        },
+        "T009": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "c009def9-74d3-46ad-873a-3d7de6c69456",
+            "spec_hash": "089c49cdac00fde782d980e0f41950ef13015b73362049f44c02be067d85211b"
+        },
+        "T010": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "c009def9-74d3-46ad-873a-3d7de6c69456",
+            "spec_hash": "926112b81b4007b11f4bfd006d3d15e8e7fc94c1d9aa14fe24ecb4450ce5a8c5"
+        },
+        "T011": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "96d1912a-7321-4433-93df-d434afd37f9f",
+            "spec_hash": "f84c45c4d46822a98907ab454b35083e8d3733de7abdb360fe973d141688a3e8"
+        },
+        "T012": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "96d1912a-7321-4433-93df-d434afd37f9f",
+            "spec_hash": "b47789a4c9b170ec2bb0b2f3101fa71c44b43052afe7199a23a5d504cd01d9cb"
+        },
+        "T013": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "96d1912a-7321-4433-93df-d434afd37f9f",
+            "spec_hash": "448dd184818a5355c123461e52f281df2014fd491f59bce115c78d8045feff13"
+        },
+        "T014": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "96d1912a-7321-4433-93df-d434afd37f9f",
+            "spec_hash": "ce0fb832408ce697e5d956d8b66b967e9c95e795a792f3c8fe4d198ef1081be9"
+        },
+        "T015": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "96d1912a-7321-4433-93df-d434afd37f9f",
+            "spec_hash": "ffdfaf10dc865da3815c6c7cc822d2a4d5c4990c80ed7eca835b77350d82a2af"
+        },
+        "T016": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "282eb4d9-aa21-4b8c-83c8-31cb5365673f",
+            "spec_hash": "84dfc788aae6cca683c8a9df488cb43467e54abce43578b56c841280d8f5196e"
+        },
+        "T017": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "282eb4d9-aa21-4b8c-83c8-31cb5365673f",
+            "spec_hash": "f2e34d5e97a870619dbe56675a0b85a6b6f1ff03f519d2d8e055ff262fae6b0d"
+        },
+        "T018": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "282eb4d9-aa21-4b8c-83c8-31cb5365673f",
+            "spec_hash": "f0d15067d06d35b7b8c2ee6ea4c698f619b3f0fd09d816777f3cea55fdf11998"
+        },
+        "T019": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "282eb4d9-aa21-4b8c-83c8-31cb5365673f",
+            "spec_hash": "02f3c6a18ff26dc96c4099de03942b2250f79c7969bb5ef1ebbd32730ccc37f2"
+        },
+        "T020": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "282eb4d9-aa21-4b8c-83c8-31cb5365673f",
+            "spec_hash": "2d61963317fad1c9c556a9d221404842809f12ff21ea3a4961f64990180cb562"
+        },
+        "T021": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "70d8526e-1770-4865-8ba1-ea42b923f391",
+            "spec_hash": "08cc4ff2c8a544ad735b9cd7a7fc251b36f45a68ea02f09a871403f1d5e51e65"
+        },
+        "T022": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "70d8526e-1770-4865-8ba1-ea42b923f391",
+            "spec_hash": "00b6ef03c654c5148725f496407bee73a9848636a997ad6ab935d84e8301ace5"
+        },
+        "T023": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "70d8526e-1770-4865-8ba1-ea42b923f391",
+            "spec_hash": "7d6eb68b92a07056057f82a80a6e4ddb0026005662720c9a126d198838e01202"
+        },
+        "T024": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "70d8526e-1770-4865-8ba1-ea42b923f391",
+            "spec_hash": "f849de6dad11747a1726963300e9ff70edc60865472b64184a4bd21497201b42"
+        },
+        "T025": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "70d8526e-1770-4865-8ba1-ea42b923f391",
+            "spec_hash": "7c0d955cde6e09a1884921a7a92d2d495efc64e514bbbfd4089368e6947f5734"
+        },
+        "T026": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "66f54286-48e1-4809-b45f-cfeadb3318a8",
+            "spec_hash": "a3adb644136964532009e0785f46abff9b2f8671a3b25d2aa817cf24f5fda3a0"
+        },
+        "T027": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "66f54286-48e1-4809-b45f-cfeadb3318a8",
+            "spec_hash": "e54edfb2aa1cdac08fe3d8d1f58108d3facd6957cd8a14401853d0207e761256"
+        },
+        "T028": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "66f54286-48e1-4809-b45f-cfeadb3318a8",
+            "spec_hash": "51e6e88708ec376139dd4b23b7674f2094c7455211cffc0b856d0b200d0209c0"
+        },
+        "T029": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "66f54286-48e1-4809-b45f-cfeadb3318a8",
+            "spec_hash": "b1e429f801cddbe13c19f15840c148354ebb60240dd2d5a6ba383ff32da263c9"
+        },
+        "T030": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "66f54286-48e1-4809-b45f-cfeadb3318a8",
+            "spec_hash": "f43a2a76fe5ba1e0a45976dc2ae3c0f5c0d79dc2a0de14e1175fcb58c33cde52"
+        },
+        "T031": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "3af876b4-86b4-41f6-b5a3-6b2033c17484",
+            "spec_hash": "d41c29cc7324d6e7a6e8b653ee543797a8f91a1e4e7f6ee9ac8f22325af7667c"
+        },
+        "T032": {
+            "attempts": 1,
+            "status": "done",
+            "chat_id": "3af876b4-86b4-41f6-b5a3-6b2033c17484",
+            "spec_hash": "971e16e6079ff1c993dc43eeca287b014ad1415cb92243d6b0f3ea29f66a0071"
+        }
+    },
     "author_chat_id": "8cdedaf9-b2b7-4096-a538-e8f3f25d38b9",
     "author_model": "cursor-grok-4.6-high",
     "mode": "fast"

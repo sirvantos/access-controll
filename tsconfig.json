@@ -8,7 +8,11 @@
         "isolatedModules": true,
         "skipLibCheck": true,
         "noEmit": true,
-        "types": ["vite/client"]
+        "types": ["vite/client"],
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["resources/js/*"]
+        }
     },
-    "include": ["resources/js/**/*.ts", "resources/js/**/*.vue", "vite.config.ts"]
+    "include": ["resources/js/**/*.ts", "resources/js/**/*.d.ts", "resources/js/**/*.vue", "vite.config.ts"]
 }

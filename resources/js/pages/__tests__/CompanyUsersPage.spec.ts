@@ -140,6 +140,35 @@ describe('CompanyUsersPage', () => {
         expect(wrapper.findAll('button').map((button) => button.attributes('data-testid'))).toEqual(
             ['invite-user', 'deactivate-user-2', 'reactivate-user-3', 'previous-page', 'next-page'],
         );
+        expect(wrapper.get('[data-testid="invite-role"]').element).toBeInstanceOf(HTMLSelectElement);
+        expect(wrapper.get('[data-testid="user-role-2"]').element).toBeInstanceOf(HTMLSelectElement);
+
+        const badges = wrapper.findAll('[data-slot="badge"]');
+        const activeBadge = badges.find((badge) => badge.text() === t('companyUsers.active'));
+        const deactivatedBadge = badges.find(
+            (badge) => badge.text() === t('companyUsers.deactivated'),
+        );
+
+        expect(activeBadge).toBeDefined();
+        expect(deactivatedBadge).toBeDefined();
+        expect(activeBadge?.classes().join(' ')).toContain('bg-success');
+        expect(deactivatedBadge?.classes().join(' ')).not.toContain('bg-success');
+        expect(wrapper.get('[data-testid="invite-user"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="deactivate-user-2"]').classes().join(' ')).toContain(
+            'bg-destructive',
+        );
+        expect(wrapper.get('[data-testid="reactivate-user-3"]').classes().join(' ')).toContain(
+            'border',
+        );
+        expect(wrapper.get('[data-testid="reactivate-user-3"]').classes().join(' ')).not.toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="previous-page"]').classes().join(' ')).toContain('border');
+        expect(wrapper.get('[data-testid="next-page"]').classes().join(' ')).not.toContain(
+            'bg-primary',
+        );
 
         await wrapper.get('[data-testid="next-page"]').trigger('click');
         await flushPromises();
@@ -204,6 +233,9 @@ describe('CompanyUsersPage', () => {
         await flushPromises();
 
         expect(wrapper.get('[data-testid="invite-error"]').text()).toBe('registered');
+        expect(wrapper.get('[data-testid="invite-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
     });
 
     it('lists a pending invitation and re-sends or revokes it', async () => {
@@ -230,6 +262,15 @@ describe('CompanyUsersPage', () => {
         await flushPromises();
 
         expect(revokeCompanyInvitation).toHaveBeenCalledWith(pending.id);
+        expect(wrapper.get('[data-testid="resend-invitation-9"]').classes().join(' ')).toContain(
+            'border',
+        );
+        expect(wrapper.get('[data-testid="resend-invitation-9"]').classes().join(' ')).not.toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="revoke-invitation-9"]').classes().join(' ')).toContain(
+            'bg-destructive',
+        );
     });
 
     it('shows the not-pending message when re-send is refused', async () => {

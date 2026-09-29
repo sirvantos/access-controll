@@ -3,6 +3,10 @@ import { ref } from 'vue';
 import { requestPasswordReset } from '../api/auth';
 import { ApiError } from '../api/client';
 import { t } from '../utils/i18n';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const email = ref('');
 const emailError = ref<string | null>(null);
@@ -28,30 +32,25 @@ async function submit(): Promise<void> {
 
 <template>
     <form class="mx-auto flex max-w-sm flex-col gap-4" @submit.prevent="submit">
-        <p v-if="confirmed" data-testid="reset-confirmation" class="text-sm">
-            {{ t('auth.resetConfirmation') }}
-        </p>
-        <label class="flex flex-col gap-1 text-sm">
+        <Alert v-if="confirmed" data-testid="reset-confirmation">
+            <AlertDescription>{{ t('auth.resetConfirmation') }}</AlertDescription>
+        </Alert>
+        <Label class="flex flex-col items-stretch gap-1">
             {{ t('auth.email') }}
-            <input
+            <Input
                 v-model="email"
                 data-testid="email"
                 type="email"
                 name="email"
                 autocomplete="username"
                 required
-                class="rounded border border-zinc-300 px-3 py-2"
             />
-        </label>
-        <p v-if="emailError" data-testid="email-error" class="text-sm text-red-700">
+        </Label>
+        <p v-if="emailError" data-testid="email-error" class="text-sm text-destructive">
             {{ emailError }}
         </p>
-        <button
-            type="submit"
-            data-testid="send-reset-link"
-            class="rounded bg-zinc-900 px-3 py-2 text-white"
-        >
+        <Button type="submit" data-testid="send-reset-link">
             {{ t('auth.sendResetLink') }}
-        </button>
+        </Button>
     </form>
 </template>

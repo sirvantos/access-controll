@@ -105,6 +105,21 @@ describe('AppHeader', () => {
         );
     });
 
+    it('truncates a long selected company name and sets title to the raw name', async () => {
+        const longName =
+            'Acme Industrial Holdings International Limited Partnership of Central Asia';
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: longName });
+        const wrapper = await mountHeader(owner);
+        const name = wrapper.get('[data-testid="selected-company-name"]');
+        const className = name.classes().join(' ');
+
+        expect(name.text()).toBe(t('companies.selected', { name: longName }));
+        expect(name.attributes('title')).toBe(longName);
+        expect(className).toContain('truncate');
+        expect(className).toContain('text-slate-900');
+    });
+
     it('links a company admin to users and the company profile', async () => {
         const wrapper = await mountHeader(admin);
 

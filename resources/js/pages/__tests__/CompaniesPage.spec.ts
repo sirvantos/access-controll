@@ -104,10 +104,12 @@ const emptyCompanies = {
     },
 };
 
-afterEach(() => {
+afterEach(async () => {
     vi.clearAllMocks();
     document.documentElement.lang = 'en';
     sessionStorage.clear();
+    const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+    useSelectedCompany().clearSelectedCompany();
 });
 
 describe('CompaniesPage', () => {
@@ -153,6 +155,25 @@ describe('CompaniesPage', () => {
         expect(wrapper.text()).toContain(acme.created_at);
         expect(wrapper.text()).toContain(t('companies.active'));
         expect(wrapper.text()).toContain(t('companies.deactivated'));
+        expect(wrapper.find('[data-testid^="delete-company"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="create-company"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="select-company-3"]').classes().join(' ')).not.toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="deactivate-company-3"]').classes().join(' ')).toContain(
+            'bg-destructive',
+        );
+        expect(wrapper.get('[data-testid="reactivate-company-4"]').classes().join(' ')).toContain(
+            'border',
+        );
+        expect(
+            wrapper.get('[data-testid="clear-selected-company"]').classes().join(' '),
+        ).not.toContain('bg-primary');
+        expect(wrapper.get('[data-testid="company-time-zone"]').element).toBeInstanceOf(
+            HTMLSelectElement,
+        );
 
         await wrapper.get('[data-testid="next-page"]').trigger('click');
         await flushPromises();
@@ -190,11 +211,21 @@ describe('CompaniesPage', () => {
             name: closed.name,
         });
 
+        const rows = wrapper.findAll('[data-testid="company-row"]');
+        expect(rows[0]?.classes().join(' ')).not.toContain('bg-slate-100');
+        expect(rows[1]?.classes().join(' ')).toContain('bg-slate-100');
+        expect(wrapper.find('[data-testid="selected-company-name"]').exists()).toBe(false);
+
         await wrapper.get('[data-testid="clear-selected-company"]').trigger('click');
         await flushPromises();
 
         expect(clearSelectedCompany).toHaveBeenCalledOnce();
         expect(useSelectedCompany().selectedCompany.value).toBeNull();
+        expect(
+            wrapper
+                .findAll('[data-testid="company-row"]')
+                .some((row) => row.classes().includes('bg-slate-100')),
+        ).toBe(false);
     });
 
     it('creates a company from the name and first admin email', async () => {

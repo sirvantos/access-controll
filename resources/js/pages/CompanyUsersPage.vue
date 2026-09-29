@@ -21,6 +21,19 @@ import {
     type Role,
 } from '../api/types';
 import { t } from '../utils/i18n';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { NativeSelect } from '../components/ui/native-select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '../components/ui/table';
 
 const route = useRoute();
 const router = useRouter();
@@ -175,161 +188,163 @@ async function changeUser(action: () => Promise<unknown>): Promise<void> {
 
 <template>
     <section class="flex flex-col gap-4">
-        <h1 class="text-xl font-semibold">{{ t('companyUsers.title') }}</h1>
+        <h1 class="text-xl font-semibold text-slate-900">{{ t('companyUsers.title') }}</h1>
         <form class="flex max-w-sm flex-col gap-3" @submit.prevent="invite">
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyUsers.email') }}
-                <input
+                <Input
                     v-model="inviteEmail"
                     data-testid="invite-email"
                     type="email"
                     name="email"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <label class="flex flex-col gap-1 text-sm">
+            </Label>
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyUsers.role') }}
-                <select
-                    v-model="inviteRole"
-                    data-testid="invite-role"
-                    name="role"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                >
+                <NativeSelect v-model="inviteRole" data-testid="invite-role" name="role" class="w-full">
                     <option v-for="role in ASSIGNABLE_ROLES" :key="role" :value="role">
                         {{ roleLabel(role) }}
                     </option>
-                </select>
-            </label>
-            <p v-if="inviteError" data-testid="invite-error" class="text-sm text-red-700">
+                </NativeSelect>
+            </Label>
+            <p v-if="inviteError" data-testid="invite-error" class="text-sm text-destructive">
                 {{ inviteError }}
             </p>
-            <button
-                type="submit"
-                data-testid="invite-user"
-                class="rounded bg-zinc-900 px-3 py-2 text-white"
-            >
+            <Button type="submit" data-testid="invite-user">
                 {{ t('companyUsers.invite') }}
-            </button>
+            </Button>
         </form>
         <section class="flex flex-col gap-2">
-            <h2 class="text-lg font-semibold">{{ t('companyUsers.invitations') }}</h2>
-            <p v-if="invitationError" data-testid="invitation-error" class="text-sm text-red-700">
+            <h2 class="text-lg font-semibold text-slate-900">{{ t('companyUsers.invitations') }}</h2>
+            <p v-if="invitationError" data-testid="invitation-error" class="text-sm text-destructive">
                 {{ invitationError }}
             </p>
-            <table class="w-full text-left text-sm">
-                <thead>
-                    <tr>
-                        <th class="py-2">{{ t('companyUsers.email') }}</th>
-                        <th class="py-2">{{ t('companyUsers.role') }}</th>
-                        <th class="py-2">{{ t('companyUsers.expires') }}</th>
-                        <th class="py-2">{{ t('companyUsers.actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>{{ t('companyUsers.email') }}</TableHead>
+                        <TableHead>{{ t('companyUsers.role') }}</TableHead>
+                        <TableHead>{{ t('companyUsers.expires') }}</TableHead>
+                        <TableHead>{{ t('companyUsers.actions') }}</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow
                         v-for="invitation in invitations"
                         :key="invitation.id"
                         data-testid="invitation-row"
                     >
-                        <td class="py-2">{{ invitation.email }}</td>
-                        <td class="py-2">{{ roleLabel(invitation.role) }}</td>
-                        <td class="py-2">{{ invitation.expires_at }}</td>
-                        <td class="py-2">
-                            <button
-                                type="button"
-                                :data-testid="`resend-invitation-${invitation.id}`"
-                                class="rounded border border-zinc-300 px-3 py-1"
-                                @click="resend(invitation.id)"
-                            >
-                                {{ t('companyUsers.resend') }}
-                            </button>
-                            <button
-                                type="button"
-                                :data-testid="`revoke-invitation-${invitation.id}`"
-                                class="ml-2 rounded border border-zinc-300 px-3 py-1"
-                                @click="revoke(invitation.id)"
-                            >
-                                {{ t('companyUsers.revoke') }}
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        <TableCell>{{ invitation.email }}</TableCell>
+                        <TableCell>{{ roleLabel(invitation.role) }}</TableCell>
+                        <TableCell>{{ invitation.expires_at }}</TableCell>
+                        <TableCell>
+                            <div class="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    :data-testid="`resend-invitation-${invitation.id}`"
+                                    @click="resend(invitation.id)"
+                                >
+                                    {{ t('companyUsers.resend') }}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    :data-testid="`revoke-invitation-${invitation.id}`"
+                                    @click="revoke(invitation.id)"
+                                >
+                                    {{ t('companyUsers.revoke') }}
+                                </Button>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
         </section>
-        <table class="w-full text-left text-sm">
-            <thead>
-                <tr>
-                    <th class="py-2">{{ t('companyUsers.email') }}</th>
-                    <th class="py-2">{{ t('companyUsers.role') }}</th>
-                    <th class="py-2">{{ t('companyUsers.state') }}</th>
-                    <th class="py-2">{{ t('companyUsers.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="user in users" :key="user.id" data-testid="user-row">
-                    <td class="py-2">{{ user.email }}</td>
-                    <td class="py-2">
-                        <select
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>{{ t('companyUsers.email') }}</TableHead>
+                    <TableHead>{{ t('companyUsers.role') }}</TableHead>
+                    <TableHead>{{ t('companyUsers.state') }}</TableHead>
+                    <TableHead>{{ t('companyUsers.actions') }}</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow v-for="user in users" :key="user.id" data-testid="user-row">
+                    <TableCell>{{ user.email }}</TableCell>
+                    <TableCell>
+                        <NativeSelect
                             :key="`${user.id}-${listVersion}`"
                             :data-testid="`user-role-${user.id}`"
-                            :value="user.role"
-                            class="rounded border border-zinc-300 px-3 py-1"
+                            :model-value="user.role"
                             @change="changeRole(user.id, $event)"
                         >
                             <option v-for="role in ASSIGNABLE_ROLES" :key="role" :value="role">
                                 {{ roleLabel(role) }}
                             </option>
-                        </select>
-                    </td>
-                    <td class="py-2">
-                        {{ t(user.is_active ? 'companyUsers.active' : 'companyUsers.deactivated') }}
-                    </td>
-                    <td class="py-2">
-                        <button
+                        </NativeSelect>
+                    </TableCell>
+                    <TableCell>
+                        <Badge v-if="user.is_active" variant="success">
+                            {{ t('companyUsers.active') }}
+                        </Badge>
+                        <Badge v-else variant="secondary">
+                            {{ t('companyUsers.deactivated') }}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <Button
                             v-if="user.is_active"
                             type="button"
+                            variant="destructive"
+                            size="sm"
                             :data-testid="`deactivate-user-${user.id}`"
-                            class="rounded border border-zinc-300 px-3 py-1"
                             @click="deactivate(user.id)"
                         >
                             {{ t('companyUsers.deactivate') }}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             v-else
                             type="button"
+                            variant="outline"
+                            size="sm"
                             :data-testid="`reactivate-user-${user.id}`"
-                            class="rounded border border-zinc-300 px-3 py-1"
                             @click="reactivate(user.id)"
                         >
                             {{ t('companyUsers.reactivate') }}
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <p v-if="userError" data-testid="user-error" class="text-sm text-red-700">
+                        </Button>
+                    </TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
+        <p v-if="userError" data-testid="user-error" class="text-sm text-destructive">
             {{ userError }}
         </p>
         <div v-if="meta !== null && meta.last_page > 1" class="flex gap-2">
-            <button
+            <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 data-testid="previous-page"
-                class="rounded border border-zinc-300 px-3 py-1"
                 :disabled="meta.current_page <= 1"
                 @click="showPage(meta.current_page - 1)"
             >
                 {{ t('companyUsers.previous') }}
-            </button>
-            <button
+            </Button>
+            <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 data-testid="next-page"
-                class="rounded border border-zinc-300 px-3 py-1"
                 :disabled="meta.current_page >= meta.last_page"
                 @click="showPage(meta.current_page + 1)"
             >
                 {{ t('companyUsers.next') }}
-            </button>
+            </Button>
         </div>
     </section>
 </template>

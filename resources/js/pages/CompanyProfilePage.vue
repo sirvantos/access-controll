@@ -11,6 +11,11 @@ import {
 } from '../api/companyProfile';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { t } from '../utils/i18n';
+import { Button } from '../components/ui/button';
+import { nativeCheckboxClass } from '../components/ui/checkbox';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { NativeSelect } from '../components/ui/native-select';
 
 const { currentUser } = useCurrentUser();
 const isViewer = computed(() => currentUser.value?.role === 'viewer');
@@ -174,24 +179,30 @@ async function saveSettings(): Promise<void> {
         class="flex max-w-sm flex-col gap-3"
         data-testid="company-profile-readonly"
     >
-        <h1 class="text-xl font-semibold">{{ t('companyProfile.title') }}</h1>
+        <h1 class="text-xl font-semibold text-slate-900">{{ t('companyProfile.title') }}</h1>
         <p data-testid="company-name">{{ name }}</p>
         <p data-testid="company-time-zone">{{ timeZone }}</p>
         <p data-testid="company-bin">{{ bin }}</p>
         <p data-testid="company-contact-person">{{ contactPerson }}</p>
         <p data-testid="company-phone">{{ phone }}</p>
         <p data-testid="company-email">{{ email }}</p>
-        <h2 class="text-xl font-semibold">{{ t('companyProfile.settingsTitle') }}</h2>
+        <h2 class="text-xl font-semibold text-slate-900">{{ t('companyProfile.settingsTitle') }}</h2>
         <p data-testid="working-day-start">{{ startTime }}</p>
         <p data-testid="working-day-end">{{ endTime }}</p>
         <p data-testid="working-days">
             <span v-for="day in workingDays" :key="day">{{ t(`companyProfile.days.${day}`) }}</span>
         </p>
         <p data-testid="break-duration">{{ breakDurationMinutes }}</p>
-        <label class="flex items-center gap-2 text-sm">
+        <Label class="flex items-center gap-2">
             {{ t('companyProfile.breakDeducted') }}
-            <input data-testid="break-deducted" type="checkbox" :checked="breakDeducted" disabled />
-        </label>
+            <input
+                data-testid="break-deducted"
+                type="checkbox"
+                :class="nativeCheckboxClass"
+                :checked="breakDeducted"
+                disabled
+            />
+        </Label>
         <p data-testid="lateness-grace">{{ latenessGraceMinutes }}</p>
     </section>
     <section v-else class="flex flex-col gap-8">
@@ -200,102 +211,78 @@ async function saveSettings(): Promise<void> {
             data-testid="company-profile-form"
             @submit.prevent="saveProfile"
         >
-            <h1 class="text-xl font-semibold">{{ t('companyProfile.title') }}</h1>
-            <label class="flex flex-col gap-1 text-sm">
+            <h1 class="text-xl font-semibold text-slate-900">{{ t('companyProfile.title') }}</h1>
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.name') }}
-                <input
+                <Input
                     v-model="name"
                     data-testid="company-name"
                     type="text"
                     name="name"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <p v-if="nameError" data-testid="company-name-error" class="text-sm text-red-700">
+            </Label>
+            <p v-if="nameError" data-testid="company-name-error" class="text-sm text-destructive">
                 {{ nameError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.timeZone') }}
-                <select
+                <NativeSelect
                     v-model="timeZone"
                     data-testid="company-time-zone"
                     name="time_zone"
-                    class="rounded border border-zinc-300 px-3 py-2"
+                    class="w-full"
                 >
                     <option v-for="zone in timeZones" :key="zone" :value="zone">{{ zone }}</option>
-                </select>
-            </label>
+                </NativeSelect>
+            </Label>
             <p
                 v-if="timeZoneError"
                 data-testid="company-time-zone-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ timeZoneError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.bin') }}
-                <input
-                    v-model="bin"
-                    data-testid="company-bin"
-                    type="text"
-                    name="bin"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                />
-            </label>
-            <p v-if="binError" data-testid="company-bin-error" class="text-sm text-red-700">
+                <Input v-model="bin" data-testid="company-bin" type="text" name="bin" />
+            </Label>
+            <p v-if="binError" data-testid="company-bin-error" class="text-sm text-destructive">
                 {{ binError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.contactPerson') }}
-                <input
+                <Input
                     v-model="contactPerson"
                     data-testid="company-contact-person"
                     type="text"
                     name="contact_person"
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="contactPersonError"
                 data-testid="company-contact-person-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ contactPersonError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.phone') }}
-                <input
-                    v-model="phone"
-                    data-testid="company-phone"
-                    type="text"
-                    name="phone"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                />
-            </label>
-            <p v-if="phoneError" data-testid="company-phone-error" class="text-sm text-red-700">
+                <Input v-model="phone" data-testid="company-phone" type="text" name="phone" />
+            </Label>
+            <p v-if="phoneError" data-testid="company-phone-error" class="text-sm text-destructive">
                 {{ phoneError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companies.email') }}
-                <input
-                    v-model="email"
-                    data-testid="company-email"
-                    type="email"
-                    name="email"
-                    class="rounded border border-zinc-300 px-3 py-2"
-                />
-            </label>
-            <p v-if="emailError" data-testid="company-email-error" class="text-sm text-red-700">
+                <Input v-model="email" data-testid="company-email" type="email" name="email" />
+            </Label>
+            <p v-if="emailError" data-testid="company-email-error" class="text-sm text-destructive">
                 {{ emailError }}
             </p>
-            <button
-                type="submit"
-                data-testid="save-company-profile"
-                class="rounded bg-zinc-900 px-3 py-2 text-white"
-            >
+            <Button type="submit" data-testid="save-company-profile">
                 {{ t('companyProfile.save') }}
-            </button>
+            </Button>
         </form>
 
         <form
@@ -303,114 +290,108 @@ async function saveSettings(): Promise<void> {
             data-testid="working-day-settings-form"
             @submit.prevent="saveSettings"
         >
-            <h2 class="text-xl font-semibold">{{ t('companyProfile.settingsTitle') }}</h2>
-            <label class="flex flex-col gap-1 text-sm">
+            <h2 class="text-xl font-semibold text-slate-900">{{ t('companyProfile.settingsTitle') }}</h2>
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyProfile.start') }}
-                <input
+                <Input
                     v-model="startTime"
                     data-testid="working-day-start"
                     type="time"
                     name="start_time"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="startTimeError"
                 data-testid="working-day-start-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ startTimeError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyProfile.end') }}
-                <input
+                <Input
                     v-model="endTime"
                     data-testid="working-day-end"
                     type="time"
                     name="end_time"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <p v-if="endTimeError" data-testid="working-day-end-error" class="text-sm text-red-700">
+            </Label>
+            <p v-if="endTimeError" data-testid="working-day-end-error" class="text-sm text-destructive">
                 {{ endTimeError }}
             </p>
             <fieldset class="flex flex-col gap-1 text-sm">
                 <legend>{{ t('companyProfile.workingDays') }}</legend>
-                <label v-for="day in WEEK_DAYS" :key="day" class="flex items-center gap-2">
+                <Label v-for="day in WEEK_DAYS" :key="day" class="flex items-center gap-2">
                     <input
                         v-model="workingDays"
                         type="checkbox"
                         name="working_days"
+                        :class="nativeCheckboxClass"
                         :value="day"
                         :data-testid="`working-day-${day}`"
                     />
                     {{ t(`companyProfile.days.${day}`) }}
-                </label>
+                </Label>
             </fieldset>
             <p
                 v-if="workingDaysError"
                 data-testid="working-days-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ workingDaysError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyProfile.breakDuration') }}
-                <input
+                <Input
                     v-model.number="breakDurationMinutes"
                     data-testid="break-duration"
                     type="number"
                     name="break_duration_minutes"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
+            </Label>
             <p
                 v-if="breakDurationError"
                 data-testid="break-duration-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ breakDurationError }}
             </p>
-            <label class="flex items-center gap-2 text-sm">
+            <Label class="flex items-center gap-2">
                 <input
                     v-model="breakDeducted"
                     data-testid="break-deducted"
                     type="checkbox"
                     name="break_deducted"
+                    :class="nativeCheckboxClass"
                 />
                 {{ t('companyProfile.breakDeducted') }}
-            </label>
+            </Label>
             <p
                 v-if="breakDeductedError"
                 data-testid="break-deducted-error"
-                class="text-sm text-red-700"
+                class="text-sm text-destructive"
             >
                 {{ breakDeductedError }}
             </p>
-            <label class="flex flex-col gap-1 text-sm">
+            <Label class="flex flex-col items-stretch gap-1">
                 {{ t('companyProfile.grace') }}
-                <input
+                <Input
                     v-model.number="latenessGraceMinutes"
                     data-testid="lateness-grace"
                     type="number"
                     name="lateness_grace_minutes"
                     required
-                    class="rounded border border-zinc-300 px-3 py-2"
                 />
-            </label>
-            <p v-if="graceError" data-testid="lateness-grace-error" class="text-sm text-red-700">
+            </Label>
+            <p v-if="graceError" data-testid="lateness-grace-error" class="text-sm text-destructive">
                 {{ graceError }}
             </p>
-            <button
-                type="submit"
-                data-testid="save-working-day-settings"
-                class="rounded bg-zinc-900 px-3 py-2 text-white"
-            >
+            <Button type="submit" data-testid="save-working-day-settings">
                 {{ t('companyProfile.saveSettings') }}
-            </button>
+            </Button>
         </form>
     </section>
 </template>

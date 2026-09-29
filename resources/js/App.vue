@@ -8,9 +8,11 @@ const showHeader = computed(() => route.meta.guest !== true);
 </script>
 
 <template>
-    <div class="min-h-screen bg-white text-zinc-900">
+    <div class="min-h-screen bg-background text-foreground">
         <AppHeader v-if="showHeader" />
-        <main class="mx-auto max-w-3xl px-4 py-6">
+        <main
+            class="mx-auto mt-6 max-w-3xl rounded-[var(--radius)] border border-border bg-card px-4 py-6"
+        >
             <RouterView />
         </main>
     </div>

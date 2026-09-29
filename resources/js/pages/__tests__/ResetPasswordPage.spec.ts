@@ -26,6 +26,16 @@ describe('ResetPasswordPage', () => {
 
         const { wrapper, router } = await mountPage();
 
+        expect(wrapper.get('[data-testid="password"]').element).toBeInstanceOf(HTMLInputElement);
+        expect(wrapper.get('[data-testid="reset-password"]').element).toBeInstanceOf(
+            HTMLButtonElement,
+        );
+        expect(wrapper.get('[data-testid="reset-password"]').text()).toBe(t('auth.resetPassword'));
+        expect(wrapper.get('[data-testid="reset-password"]').classes().join(' ')).toContain(
+            'bg-primary',
+        );
+        expect(wrapper.get('[data-testid="password"]').attributes('data-slot')).toBe('input');
+
         await wrapper.get('[data-testid="password"]').setValue('new-password');
         await wrapper.get('form').trigger('submit');
         await flushPromises();
@@ -50,6 +60,28 @@ describe('ResetPasswordPage', () => {
 
         expect(link.text()).toBe(t('auth.requestNewLink'));
         expect(link.attributes('href')).toBe('/forgot-password');
+        expect(wrapper.get('[data-testid="reset-token-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
+        expect(link.classes().join(' ')).toContain('text-primary');
+    });
+
+    it('shows a field error for an invalid password', async () => {
+        resetPassword.mockRejectedValue(
+            new ApiError(422, 'invalid', null, { password: ['too-short'] }),
+        );
+
+        const wrapper = await mountPage().then(({ wrapper: page }) => page);
+
+        await wrapper.get('[data-testid="password"]').setValue('short');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(wrapper.get('[data-testid="password-error"]').text()).toBe('too-short');
+        expect(wrapper.get('[data-testid="password-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
+        expect(wrapper.find('[data-testid="reset-token-error"]').exists()).toBe(false);
     });
 });
 

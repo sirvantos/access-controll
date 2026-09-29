@@ -5,6 +5,10 @@ import { signIn } from '../api/auth';
 import { ApiError } from '../api/client';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { t } from '../utils/i18n';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const route = useRoute();
 const router = useRouter();
@@ -35,42 +39,40 @@ async function submit(): Promise<void> {
 
 <template>
     <form class="mx-auto flex max-w-sm flex-col gap-4" @submit.prevent="submit">
-        <label class="flex flex-col gap-1 text-sm">
+        <Label class="flex flex-col items-stretch gap-1">
             {{ t('auth.email') }}
-            <input
+            <Input
                 v-model="email"
                 data-testid="email"
                 type="email"
                 name="email"
                 autocomplete="username"
                 required
-                class="rounded border border-zinc-300 px-3 py-2"
             />
-        </label>
-        <label class="flex flex-col gap-1 text-sm">
+        </Label>
+        <Label class="flex flex-col items-stretch gap-1">
             {{ t('auth.password') }}
-            <input
+            <Input
                 v-model="password"
                 data-testid="password"
                 type="password"
                 name="password"
                 autocomplete="current-password"
                 required
-                class="rounded border border-zinc-300 px-3 py-2"
             />
-        </label>
-        <p v-if="failureMessage" data-testid="sign-in-error" class="text-sm text-red-700">
-            {{ failureMessage }}
-        </p>
-        <RouterLink to="/forgot-password" data-testid="forgot-password" class="text-sm underline">
+        </Label>
+        <Alert v-if="failureMessage" variant="destructive" data-testid="sign-in-error">
+            <AlertDescription>{{ failureMessage }}</AlertDescription>
+        </Alert>
+        <RouterLink
+            to="/forgot-password"
+            data-testid="forgot-password"
+            class="text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
             {{ t('auth.forgotPassword') }}
         </RouterLink>
-        <button
-            type="submit"
-            data-testid="sign-in"
-            class="rounded bg-zinc-900 px-3 py-2 text-white"
-        >
+        <Button type="submit" data-testid="sign-in">
             {{ t('auth.signIn') }}
-        </button>
+        </Button>
     </form>
 </template>

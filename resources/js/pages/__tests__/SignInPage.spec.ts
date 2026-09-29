@@ -26,9 +26,17 @@ describe('SignInPage', () => {
         expect(wrapper.get<HTMLInputElement>('[data-testid="email"]').element.value).toBe(
             admin.email,
         );
+        expect(wrapper.get('[data-testid="email"]').element).toBeInstanceOf(HTMLInputElement);
+        expect(wrapper.get('[data-testid="password"]').element).toBeInstanceOf(HTMLInputElement);
+        expect(wrapper.get('[data-testid="sign-in"]').element.tagName).toBe('BUTTON');
         expect(wrapper.get('[data-testid="sign-in"]').text()).toBe(t('auth.signIn'));
+        expect(wrapper.get('[data-testid="sign-in"]').classes().join(' ')).toContain('bg-primary');
+        expect(wrapper.get('[data-testid="email"]').attributes('data-slot')).toBe('input');
         expect(wrapper.get('[data-testid="forgot-password"]').text()).toBe(
             t('auth.forgotPassword'),
+        );
+        expect(wrapper.get('[data-testid="forgot-password"]').classes().join(' ')).toContain(
+            'text-primary',
         );
         expect(wrapper.get('[data-testid="forgot-password"]').attributes('href')).toBe(
             '/forgot-password',
@@ -51,6 +59,9 @@ describe('SignInPage', () => {
         await flushPromises();
 
         expect(wrapper.get('[data-testid="sign-in-error"]').text()).toBe(message);
+        expect(wrapper.get('[data-testid="sign-in-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
         expect(router.currentRoute.value.path).toBe('/sign-in');
     });
 
@@ -64,6 +75,9 @@ describe('SignInPage', () => {
         await flushPromises();
 
         expect(wrapper.get('[data-testid="sign-in-error"]').text()).toBe(message);
+        expect(wrapper.get('[data-testid="sign-in-error"]').classes().join(' ')).toContain(
+            'text-destructive',
+        );
         expect(router.currentRoute.value.path).toBe('/sign-in');
     });
 });
