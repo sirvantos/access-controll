@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\CompanyNotSelectedException;
+use App\Exceptions\LastActiveAdminException;
 use App\Http\Resources\OkResource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
@@ -146,6 +148,12 @@ it('lets a viewer read events, timesheets, and reports and refuses management', 
             continue;
         }
 
+        if ($method === 'GET' && str_starts_with($uri, '/api/v1/company/media/')) {
+            callMaterializedRoute($method, $uri)->assertNotFound();
+
+            continue;
+        }
+
         callMaterializedRoute($method, $uri)->assertForbidden();
     }
 
@@ -175,7 +183,8 @@ it('lets a company admin manage company categories and refuses super-admin route
     }
 });
 
-it('refuses a super admin every company route and both category probes', function () {
+it('refuses a super admin every company route without a selected company and both category probes', function () {
+    $logs = captureLogEvents();
     signedInAs(ownerSuperAdmin());
 
     $companyRoutes = materializedCompanyRoutes();
@@ -183,8 +192,12 @@ it('refuses a super admin every company route and both category probes', functio
     expect($companyRoutes)->not->toBeEmpty();
 
     foreach ($companyRoutes as [$method, $uri]) {
-        callMaterializedRoute($method, $uri)->assertForbidden();
+        callMaterializedRoute($method, $uri)
+            ->assertConflict()
+            ->assertJsonPath('error_code', CompanyNotSelectedException::ERROR_CODE);
     }
+
+    expectNothingLogged($logs);
 
     foreach (readCategoryNames() as $category) {
         $this->getJson('/_test/read/'.$category)->assertForbidden();
@@ -194,4 +207,39 @@ it('refuses a super admin every company route and both category probes', functio
         $this->getJson('/_test/manage/'.$category)->assertForbidden();
         $this->postJson('/_test/manage/'.$category)->assertForbidden();
     }
+});
+
+it('lets a super admin with a selected company match that company admin including last active admin', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $admin = acmeAdmin(['company_id' => $company->id]);
+    $owner = ownerSuperAdmin();
+
+    signedInAs($admin)
+        ->getJson('/api/v1/company')
+        ->assertOk()
+        ->assertJsonPath('data.id', $company->id);
+
+    $this->flushSession();
+    auth()->forgetGuards();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->getJson('/api/v1/company')
+        ->assertOk()
+        ->assertJsonPath('data.id', $company->id);
+
+    $this->flushSession();
+    auth()->forgetGuards();
+
+    signedInAs($admin)
+        ->postJson('/api/v1/company/users/'.$admin->id.'/deactivate')
+        ->assertConflict()
+        ->assertJsonPath('error_code', LastActiveAdminException::ERROR_CODE);
+
+    $this->flushSession();
+    auth()->forgetGuards();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->postJson('/api/v1/company/users/'.$admin->id.'/deactivate')
+        ->assertConflict()
+        ->assertJsonPath('error_code', LastActiveAdminException::ERROR_CODE);
 });

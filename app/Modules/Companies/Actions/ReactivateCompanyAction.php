@@ -7,14 +7,23 @@ namespace App\Modules\Companies\Actions;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\PublicApi\CompanySummary;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
 use LogicException;
 
 final class ReactivateCompanyAction
 {
-    public function __construct(private FirstAdminInvitations $firstAdminInvitations) {}
+    public function __construct(
+        private FirstAdminInvitations $firstAdminInvitations,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(int $companyId): CompanySummary
+    {
+        return $this->companyContext->withoutIsolation(fn (): CompanySummary => $this->reactivate($companyId));
+    }
+
+    private function reactivate(int $companyId): CompanySummary
     {
         $company = Company::query()->whereKey($companyId)->firstOrFail();
 

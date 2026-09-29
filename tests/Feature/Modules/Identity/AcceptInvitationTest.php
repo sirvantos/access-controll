@@ -33,13 +33,15 @@ it('previews a pending invitation and accepts it without signing in', function (
 
     expect(auth('web')->check())->toBeFalse();
 
-    $user = User::query()->where('email', 'invitee@acme.test')->first();
+    $user = withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'invitee@acme.test')->first(),
+    );
 
     expect($user)->not->toBeNull()
         ->and($user->role)->toBe(Role::CompanyAdmin)
         ->and($user->company_id)->toBe($company->id)
         ->and($user->deactivated_at)->toBeNull()
-        ->and($invitation->refresh()->accepted_at)->not->toBeNull();
+        ->and(withoutCompanyIsolation(fn () => $invitation->refresh()->accepted_at))->not->toBeNull();
 
     $this->withHeaders(statefulHeaders())
         ->postJson('/api/v1/auth/sign-in', [
@@ -91,7 +93,9 @@ it('rejects an invitation that is no longer open', function (string $state) {
     }
 
     expectNothingLogged($logs);
-    expect(User::query()->where('email', 'invitee@acme.test')->exists())->toBeFalse();
+    expect(withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'invitee@acme.test')->exists(),
+    ))->toBeFalse();
 })->with(['expired', 'revoked', 'accepted']);
 
 it('rejects an unknown invitation token', function () {
@@ -133,8 +137,10 @@ it('rejects a pending invitation when the email is already registered', function
         ->assertJsonPath('error_code', 'invitation_invalid');
 
     expectNothingLogged($logs);
-    expect(Invitation::query()->first()?->accepted_at)->toBeNull()
-        ->and(User::query()->where('email', 'invitee@acme.test')->count())->toBe(1);
+    expect(withoutCompanyIsolation(fn () => Invitation::query()->first()?->accepted_at))->toBeNull()
+        ->and(withoutCompanyIsolation(
+            fn () => User::query()->where('email', 'invitee@acme.test')->count(),
+        ))->toBe(1);
 });
 
 it('rejects a second pending invitation after the first is accepted', function () {
@@ -162,7 +168,9 @@ it('rejects a second pending invitation after the first is accepted', function (
         ->assertJsonPath('error_code', 'invitation_invalid');
 
     expectNothingLogged($logs);
-    expect(User::query()->where('email', 'invitee@acme.test')->count())->toBe(1);
+    expect(withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'invitee@acme.test')->count(),
+    ))->toBe(1);
 });
 
 it('accepts an invitation for a deactivated company', function () {
@@ -179,13 +187,17 @@ it('accepts an invitation for a deactivated company', function () {
         ->assertOk()
         ->assertExactJson(['ok' => true]);
 
-    $user = User::query()->where('email', 'invitee@closed.test')->first();
+    $user = withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'invitee@closed.test')->first(),
+    );
 
     expect($user)->not->toBeNull()
         ->and($user->company_id)->toBe($company->id)
         ->and($user->deactivated_at)->toBeNull()
         ->and($user->role)->toBe(Role::Viewer)
-        ->and(Invitation::query()->where('email', 'invitee@closed.test')->first()?->accepted_at)->not->toBeNull();
+        ->and(withoutCompanyIsolation(
+            fn () => Invitation::query()->where('email', 'invitee@closed.test')->first()?->accepted_at,
+        ))->not->toBeNull();
 });
 
 it('rejects a password outside the length rules', function (int $length) {
@@ -199,8 +211,8 @@ it('rejects a password outside the length rules', function (int $length) {
         ->assertUnprocessable()
         ->assertJsonValidationErrors('password');
 
-    expect(User::query()->count())->toBe(0)
-        ->and($invitation->refresh()->accepted_at)->toBeNull();
+    expect(withoutCompanyIsolation(fn () => User::query()->count()))->toBe(0)
+        ->and(withoutCompanyIsolation(fn () => $invitation->refresh()->accepted_at))->toBeNull();
 })->with([
     'too short' => 7,
     'too long' => 129,

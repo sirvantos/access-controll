@@ -135,7 +135,7 @@ it('refuses a reset link older than 60 minutes', function () {
 it('refuses a reset link for a deactivated user', function () {
     $user = acmeAdmin();
     $token = issueResetToken($user);
-    $user->forceFill(['deactivated_at' => '2026-01-15 12:00:00'])->save();
+    persistUser($user, ['deactivated_at' => '2026-01-15 12:00:00']);
     $logs = captureLogEvents();
 
     postResetPassword([
@@ -152,7 +152,7 @@ it('refuses a reset link for a user of a deactivated company', function () {
     $company = Company::factory()->create(['name' => 'Acme']);
     $user = acmeAdmin(['company_id' => $company->id]);
     $token = issueResetToken($user);
-    $company->forceFill(['deactivated_at' => '2026-01-15 12:00:00'])->save();
+    persistCompany($company, ['deactivated_at' => '2026-01-15 12:00:00']);
     $logs = captureLogEvents();
 
     postResetPassword([

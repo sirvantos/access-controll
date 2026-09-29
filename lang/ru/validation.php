@@ -177,5 +177,6 @@ return [
         'break_duration_minutes' => 'длительность перерыва',
         'lateness_grace_minutes' => 'льготный период опоздания',
         'break_deducted' => 'вычитать перерыв',
+        'company_id' => 'компания',
     ],
 ];

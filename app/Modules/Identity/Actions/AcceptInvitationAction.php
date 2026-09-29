@@ -9,15 +9,26 @@ use App\Modules\Identity\Data\InvitationState;
 use App\Modules\Identity\Models\Invitation;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\InvitationTokenService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Stringable;
 
 final class AcceptInvitationAction
 {
-    public function __construct(private InvitationTokenService $tokens) {}
+    public function __construct(
+        private InvitationTokenService $tokens,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(string $token, Stringable $password): void
+    {
+        $this->companyContext->withoutIsolation(function () use ($token, $password): void {
+            $this->accept($token, $password);
+        });
+    }
+
+    private function accept(string $token, Stringable $password): void
     {
         $invitation = $this->tokens->findByToken($token);
 

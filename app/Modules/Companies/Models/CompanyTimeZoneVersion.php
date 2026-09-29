@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Companies\Models;
 
+use App\Support\BelongsToCompany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['company_id', 'time_zone', 'applies_from'])]
 class CompanyTimeZoneVersion extends Model
 {
+    use BelongsToCompany;
+
     public const ?string UPDATED_AT = null;
 
     /**

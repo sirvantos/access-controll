@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Modules\Identity\Services;
 
 use App\Modules\Identity\Models\Invitation;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Str;
 
 final class InvitationTokenService
 {
     public const int INVITATION_TOKEN_LENGTH = 64;
+
+    public function __construct(private CompanyContext $companyContext) {}
 
     /**
      * @return array{token: string, hash: string}
@@ -31,6 +34,8 @@ final class InvitationTokenService
 
     public function findByToken(string $token): ?Invitation
     {
-        return Invitation::query()->where('token_hash', $this->hash($token))->first();
+        return $this->companyContext->withoutIsolation(
+            fn (): ?Invitation => Invitation::query()->where('token_hash', $this->hash($token))->first(),
+        );
     }
 }

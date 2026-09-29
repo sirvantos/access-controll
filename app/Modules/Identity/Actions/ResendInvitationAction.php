@@ -12,14 +12,23 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Notifications\InvitationNotification;
 use App\Modules\Identity\PublicApi\PendingInvitationView;
 use App\Modules\Identity\Services\InvitationTokenService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 final class ResendInvitationAction
 {
-    public function __construct(private InvitationTokenService $tokens) {}
+    public function __construct(
+        private InvitationTokenService $tokens,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(int $companyId, int $invitationId): PendingInvitationView
+    {
+        return $this->companyContext->run($companyId, fn (): PendingInvitationView => $this->resend($companyId, $invitationId));
+    }
+
+    private function resend(int $companyId, int $invitationId): PendingInvitationView
     {
         $invitation = $this->findInCompany($companyId, $invitationId);
 

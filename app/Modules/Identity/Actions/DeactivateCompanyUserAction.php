@@ -7,13 +7,22 @@ namespace App\Modules\Identity\Actions;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\CompanyUserView;
 use App\Modules\Identity\Services\AdminSeatGuardService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Facades\Password;
 
 final class DeactivateCompanyUserAction
 {
-    public function __construct(private AdminSeatGuardService $adminSeatGuard) {}
+    public function __construct(
+        private AdminSeatGuardService $adminSeatGuard,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(int $companyId, int $userId): CompanyUserView
+    {
+        return $this->companyContext->run($companyId, fn (): CompanyUserView => $this->deactivateUser($companyId, $userId));
+    }
+
+    private function deactivateUser(int $companyId, int $userId): CompanyUserView
     {
         $user = $this->userInCompany($companyId, $userId);
 

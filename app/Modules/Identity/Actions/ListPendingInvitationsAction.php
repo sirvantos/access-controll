@@ -6,16 +6,27 @@ namespace App\Modules\Identity\Actions;
 
 use App\Modules\Identity\Models\Invitation;
 use App\Modules\Identity\PublicApi\PendingInvitationView;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 final class ListPendingInvitationsAction
 {
     public const int PENDING_INVITATION_LIST_PAGE_SIZE = 15;
 
+    public function __construct(private CompanyContext $companyContext) {}
+
     /**
      * @return LengthAwarePaginator<int, PendingInvitationView>
      */
     public function __invoke(int $companyId, int $page): LengthAwarePaginator
+    {
+        return $this->companyContext->run($companyId, fn (): LengthAwarePaginator => $this->paginate($companyId, $page));
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, PendingInvitationView>
+     */
+    private function paginate(int $companyId, int $page): LengthAwarePaginator
     {
         /** @var LengthAwarePaginator<int, PendingInvitationView> $invitations */
         $invitations = Invitation::query()

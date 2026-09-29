@@ -15,6 +15,8 @@ const {
     revokeFirstAdminInvitation,
     deactivateCompany,
     reactivateCompany,
+    selectCompany,
+    clearSelectedCompany,
 } = vi.hoisted(() => ({
     listCompanies: vi.fn(),
     createCompany: vi.fn(),
@@ -25,6 +27,8 @@ const {
     revokeFirstAdminInvitation: vi.fn(),
     deactivateCompany: vi.fn(),
     reactivateCompany: vi.fn(),
+    selectCompany: vi.fn(),
+    clearSelectedCompany: vi.fn(),
 }));
 
 vi.mock('../../api/adminCompanies', () => ({
@@ -38,6 +42,11 @@ vi.mock('../../api/adminCompanies', () => ({
     deactivateCompany,
     reactivateCompany,
     DEFAULT_COMPANY_TIME_ZONE: 'Asia/Almaty',
+}));
+
+vi.mock('../../api/selectedCompany', () => ({
+    selectCompany,
+    clearSelectedCompany,
 }));
 
 const acme: Company = {
@@ -98,6 +107,7 @@ const emptyCompanies = {
 afterEach(() => {
     vi.clearAllMocks();
     document.documentElement.lang = 'en';
+    sessionStorage.clear();
 });
 
 describe('CompaniesPage', () => {
@@ -113,6 +123,8 @@ describe('CompaniesPage', () => {
         revokeFirstAdminInvitation.mockResolvedValue({ ok: true });
         deactivateCompany.mockResolvedValue({ data: { ...acme, is_active: false } });
         reactivateCompany.mockResolvedValue({ data: { ...closed, is_active: true } });
+        selectCompany.mockResolvedValue({ data: { id: acme.id, name: acme.name } });
+        clearSelectedCompany.mockResolvedValue({ ok: true });
     });
 
     it('lists companies with their state', async () => {
@@ -146,6 +158,43 @@ describe('CompaniesPage', () => {
         await flushPromises();
 
         expect(listCompanies).toHaveBeenCalledWith(2);
+    });
+
+    it('selects a company including a deactivated one and clears the selection', async () => {
+        listCompanies.mockResolvedValue({
+            data: [acme, closed],
+            links: { first: null, last: null, prev: null, next: null },
+            meta: {
+                current_page: 1,
+                from: 1,
+                last_page: 1,
+                links: [],
+                path: '/api/v1/admin/companies',
+                per_page: 15,
+                to: 2,
+                total: 2,
+            },
+        });
+        selectCompany.mockResolvedValue({ data: { id: closed.id, name: closed.name } });
+
+        const wrapper = await mountPage();
+
+        await wrapper.get('[data-testid="select-company-4"]').trigger('click');
+        await flushPromises();
+
+        expect(selectCompany).toHaveBeenCalledWith(4);
+
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        expect(useSelectedCompany().selectedCompany.value).toEqual({
+            id: closed.id,
+            name: closed.name,
+        });
+
+        await wrapper.get('[data-testid="clear-selected-company"]').trigger('click');
+        await flushPromises();
+
+        expect(clearSelectedCompany).toHaveBeenCalledOnce();
+        expect(useSelectedCompany().selectedCompany.value).toBeNull();
     });
 
     it('creates a company from the name and first admin email', async () => {

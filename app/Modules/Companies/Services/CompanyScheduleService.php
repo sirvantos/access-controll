@@ -9,6 +9,7 @@ use App\Modules\Companies\Models\CompanyWorkingDaySettingVersion;
 use App\Modules\Companies\PublicApi\CompanySchedule;
 use App\Modules\Companies\PublicApi\WeekDay;
 use App\Modules\Companies\PublicApi\WorkingDaySettingsView;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Enumerable;
@@ -16,19 +17,30 @@ use LogicException;
 
 final class CompanyScheduleService implements CompanySchedule
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function timeZoneIdentifierAt(int $companyId, CarbonInterface $instant): string
     {
-        return $this->timeZoneVersionAt($companyId, $instant)->time_zone;
+        return $this->companyContext->run(
+            $companyId,
+            fn (): string => $this->timeZoneVersionAt($companyId, $instant)->time_zone,
+        );
     }
 
     public function workingDaySettingsAt(int $companyId, CarbonInterface $instant): WorkingDaySettingsView
     {
-        return $this->toSettingsView($this->settingsVersionAt($companyId, $instant));
+        return $this->companyContext->run(
+            $companyId,
+            fn (): WorkingDaySettingsView => $this->toSettingsView($this->settingsVersionAt($companyId, $instant)),
+        );
     }
 
     public function latestWorkingDaySettings(int $companyId): WorkingDaySettingsView
     {
-        return $this->toSettingsView($this->latestSettings($companyId));
+        return $this->companyContext->run(
+            $companyId,
+            fn (): WorkingDaySettingsView => $this->toSettingsView($this->latestSettings($companyId)),
+        );
     }
 
     public function appliesFromNextLocalMidnight(string $timeZoneIdentifier, CarbonInterface $now): CarbonInterface
@@ -43,35 +55,53 @@ final class CompanyScheduleService implements CompanySchedule
 
     public function saveTimeZone(int $companyId, string $timeZoneIdentifier, CarbonInterface $now): void
     {
-        $latest = $this->latestTimeZone($companyId);
+        $this->companyContext->run($companyId, function () use ($companyId, $timeZoneIdentifier, $now): void {
+            $latest = $this->latestTimeZone($companyId);
 
-        if ($latest->time_zone === $timeZoneIdentifier) {
-            return;
-        }
+            if ($latest->time_zone === $timeZoneIdentifier) {
+                return;
+            }
 
-        $this->insertTimeZoneVersion(
-            $companyId,
-            $timeZoneIdentifier,
-            $this->appliesFromNextLocalMidnight($this->timeZoneIdentifierAt($companyId, $now), $now),
-        );
+            $this->insertTimeZoneVersion(
+                $companyId,
+                $timeZoneIdentifier,
+                $this->appliesFromNextLocalMidnight($this->timeZoneVersionAt($companyId, $now)->time_zone, $now),
+            );
+        });
     }
 
     public function saveWorkingDaySettings(int $companyId, WorkingDaySettingsView $settings, CarbonInterface $now): void
     {
-        $latest = $this->latestSettings($companyId);
+        $this->companyContext->run($companyId, function () use ($companyId, $settings, $now): void {
+            $latest = $this->latestSettings($companyId);
 
-        if ($this->sameSettings($latest, $settings)) {
-            return;
-        }
+            if ($this->sameSettings($latest, $settings)) {
+                return;
+            }
 
-        $this->insertWorkingDaySettingsVersion(
-            $companyId,
-            $settings,
-            $this->appliesFromNextLocalMidnight($this->timeZoneIdentifierAt($companyId, $now), $now),
-        );
+            $this->insertWorkingDaySettingsVersion(
+                $companyId,
+                $settings,
+                $this->appliesFromNextLocalMidnight($this->timeZoneVersionAt($companyId, $now)->time_zone, $now),
+            );
+        });
     }
 
     public function insertTimeZoneVersion(int $companyId, string $timeZoneIdentifier, CarbonInterface $appliesFrom): void
+    {
+        $this->companyContext->run($companyId, function () use ($companyId, $timeZoneIdentifier, $appliesFrom): void {
+            $this->persistTimeZoneVersion($companyId, $timeZoneIdentifier, $appliesFrom);
+        });
+    }
+
+    public function insertWorkingDaySettingsVersion(int $companyId, WorkingDaySettingsView $settings, CarbonInterface $appliesFrom): void
+    {
+        $this->companyContext->run($companyId, function () use ($companyId, $settings, $appliesFrom): void {
+            $this->persistWorkingDaySettingsVersion($companyId, $settings, $appliesFrom);
+        });
+    }
+
+    private function persistTimeZoneVersion(int $companyId, string $timeZoneIdentifier, CarbonInterface $appliesFrom): void
     {
         CompanyTimeZoneVersion::query()->create([
             'company_id' => $companyId,
@@ -80,7 +110,7 @@ final class CompanyScheduleService implements CompanySchedule
         ]);
     }
 
-    public function insertWorkingDaySettingsVersion(int $companyId, WorkingDaySettingsView $settings, CarbonInterface $appliesFrom): void
+    private function persistWorkingDaySettingsVersion(int $companyId, WorkingDaySettingsView $settings, CarbonInterface $appliesFrom): void
     {
         CompanyWorkingDaySettingVersion::query()->create([
             'company_id' => $companyId,

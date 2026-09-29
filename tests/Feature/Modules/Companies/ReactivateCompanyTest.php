@@ -23,8 +23,10 @@ it('lets active users sign in again after the company is reactivated', function 
         ->assertJsonPath('data.is_active', true);
 
     foreach ([$admin, $viewer] as $user) {
-        auth('web')->logout();
-        $this->flushSession();
+        withoutCompanyIsolation(function (): void {
+            auth('web')->logout();
+            $this->flushSession();
+        });
 
         test()->withHeaders(statefulHeaders())
             ->postJson('/api/v1/auth/sign-in', [
@@ -54,8 +56,10 @@ it('still refuses a user who was deactivated inside the company', function () {
         ->postJson('/api/v1/admin/companies/'.$company->id.'/reactivate')
         ->assertOk();
 
-    auth('web')->logout();
-    $this->flushSession();
+    withoutCompanyIsolation(function (): void {
+        auth('web')->logout();
+        $this->flushSession();
+    });
 
     $unknown = test()->withHeaders(statefulHeaders())
         ->postJson('/api/v1/auth/sign-in', [
@@ -120,8 +124,14 @@ it('restores the active state and leaves details and version history unchanged',
         ->postJson('/api/v1/admin/companies/'.$company->id.'/deactivate')
         ->assertOk();
 
-    $timeZones = CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
-    $settings = CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
+    $timeZones = withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    );
+    $settings = withCompanyContext(
+        $company->id,
+        fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    );
 
     signedInAs($owner)
         ->postJson('/api/v1/admin/companies/'.$company->id.'/reactivate')
@@ -130,7 +140,7 @@ it('restores the active state and leaves details and version history unchanged',
         ->assertJsonPath('data.bin', '123456789012')
         ->assertJsonPath('data.name', 'Alma Stroy');
 
-    $restored = $company->fresh();
+    $restored = withCompanyContext($company->id, fn () => $company->fresh());
 
     expect($restored)->not->toBeNull()
         ->and($restored->isActive())->toBeTrue()
@@ -140,9 +150,15 @@ it('restores the active state and leaves details and version history unchanged',
         ->and($restored->email)->toBe('office@acme.test')
         ->and($restored->name_normalized)->toBe('alma stroy');
 
-    expect(companyVersionSnapshots(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+    expect(companyVersionSnapshots(withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    )))
         ->toBe(companyVersionSnapshots($timeZones))
-        ->and(companyVersionSnapshots(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+        ->and(companyVersionSnapshots(withCompanyContext(
+            $company->id,
+            fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+        )))
         ->toBe(companyVersionSnapshots($settings));
 
     signedInAs($owner)
@@ -150,6 +166,12 @@ it('restores the active state and leaves details and version history unchanged',
         ->assertOk()
         ->assertJsonPath('data.is_active', true);
 
-    expect(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->count())->toBe($timeZones->count())
-        ->and(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->count())->toBe($settings->count());
+    expect(withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->count(),
+    ))->toBe($timeZones->count())
+        ->and(withCompanyContext(
+            $company->id,
+            fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->count(),
+        ))->toBe($settings->count());
 });

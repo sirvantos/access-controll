@@ -1,4 +1,8 @@
 import type { FieldErrors } from './types';
+import { useCurrentUser } from '../composables/useCurrentUser';
+import { useSelectedCompany } from '../composables/useSelectedCompany';
+
+export const COMPANY_CONTEXT_HEADER = 'X-Company-Context';
 
 const CSRF_COOKIE_PATH = '/sanctum/csrf-cookie';
 
@@ -13,8 +17,14 @@ let csrfReady = false;
 
 let onUnauthorized: (() => void) | null = null;
 
+let onCompanyNotSelected: (() => void) | null = null;
+
 export function setUnauthorizedHandler(handler: () => void): void {
     onUnauthorized = handler;
+}
+
+export function setCompanyNotSelectedHandler(handler: () => void): void {
+    onCompanyNotSelected = handler;
 }
 
 export class ApiError extends Error {
@@ -38,6 +48,24 @@ export class ApiError extends Error {
     }
 }
 
+export function isCompanyNotSelectedError(error: unknown): error is ApiError {
+    return (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.errorCode === 'company_not_selected'
+    );
+}
+
+export function notifyApiFailure(error: ApiError): void {
+    if (error.status === 401) {
+        onUnauthorized?.();
+    }
+
+    if (isCompanyNotSelectedError(error)) {
+        onCompanyNotSelected?.();
+    }
+}
+
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     const method = (init.method ?? 'GET').toUpperCase();
 
@@ -48,6 +76,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     const headers = new Headers(init.headers);
     headers.set('Accept', JSON_HEADERS.Accept);
     headers.set('Content-Type', JSON_HEADERS['Content-Type']);
+    attachCompanyContextHeader(headers);
 
     const token = xsrfToken();
 
@@ -64,11 +93,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
     if (!response.ok) {
         const error = await apiErrorFrom(response);
-
-        if (error.status === 401) {
-            onUnauthorized?.();
-        }
-
+        notifyApiFailure(error);
         throw error;
     }
 
@@ -106,7 +131,7 @@ function xsrfToken(): string | null {
     return decodeURIComponent(cookie.slice('XSRF-TOKEN='.length));
 }
 
-async function apiErrorFrom(response: Response): Promise<ApiError> {
+export async function apiErrorFrom(response: Response): Promise<ApiError> {
     const body = await readBody(response);
     const message = typeof body.message === 'string' ? body.message : response.statusText;
 
@@ -147,4 +172,15 @@ function fieldErrors(body: Record<string, unknown>): FieldErrors | null {
     }
 
     return errors;
+}
+
+export function attachCompanyContextHeader(headers: Headers): void {
+    const { currentUser } = useCurrentUser();
+    const { selectedCompany } = useSelectedCompany();
+
+    if (currentUser.value?.role !== 'super_admin' || selectedCompany.value === null) {
+        return;
+    }
+
+    headers.set(COMPANY_CONTEXT_HEADER, String(selectedCompany.value.id));
 }

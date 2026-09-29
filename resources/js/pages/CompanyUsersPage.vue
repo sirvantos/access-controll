@@ -13,7 +13,7 @@ import {
     type CompanyUser,
     type PendingInvitation,
 } from '../api/companyUsers';
-import { ApiError } from '../api/client';
+import { ApiError, isCompanyNotSelectedError } from '../api/client';
 import {
     ASSIGNABLE_ROLES,
     type AssignableRole,
@@ -50,14 +50,22 @@ watch(
 );
 
 async function refresh(): Promise<void> {
-    const [usersBody, invitationsBody] = await Promise.all([
-        listCompanyUsers(page.value),
-        listCompanyInvitations(1),
-    ]);
-    users.value = usersBody.data;
-    meta.value = usersBody.meta;
-    invitations.value = invitationsBody.data;
-    listVersion.value += 1;
+    try {
+        const [usersBody, invitationsBody] = await Promise.all([
+            listCompanyUsers(page.value),
+            listCompanyInvitations(1),
+        ]);
+        users.value = usersBody.data;
+        meta.value = usersBody.meta;
+        invitations.value = invitationsBody.data;
+        listVersion.value += 1;
+    } catch (error) {
+        if (isCompanyNotSelectedError(error)) {
+            return;
+        }
+
+        throw error;
+    }
 }
 
 function showPage(next: number): void {

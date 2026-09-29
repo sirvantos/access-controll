@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Identity\Models\Invitation;
 use App\Modules\Identity\PublicApi\Role;
+use Database\Factories\Concerns\CreatesWhenIsolationUnbound;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
  */
 class InvitationFactory extends Factory
 {
+    use CreatesWhenIsolationUnbound;
+
     /**
      * @return array<string, mixed>
      */

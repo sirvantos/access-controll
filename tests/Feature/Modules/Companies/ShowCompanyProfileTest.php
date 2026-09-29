@@ -12,10 +12,10 @@ it('shows the company admin their company and the latest time zone', function ()
         'phone' => '+7 (700) 123-45-67',
         'email' => 'office@acme.test',
     ]);
-    $company->timeZoneVersions()->create([
+    withCompanyContext($company->id, fn () => $company->timeZoneVersions()->create([
         'time_zone' => 'Europe/Moscow',
         'applies_from' => '2026-02-01 00:00:00',
-    ]);
+    ]));
     $admin = acmeAdmin(['company_id' => $company->id]);
 
     signedInAs($admin)
@@ -33,13 +33,32 @@ it('shows the company admin their company and the latest time zone', function ()
         ->toBe(WorkingDaySettingDefaults::DEFAULT_TIME_ZONE);
 });
 
-it('refuses a super admin', function () {
+it('asks a super admin without a selected company to select one', function () {
     acmeCompany();
     $owner = ownerSuperAdmin();
 
     signedInAs($owner)
         ->getJson('/api/v1/company')
-        ->assertForbidden();
+        ->assertConflict()
+        ->assertJsonPath('error_code', 'company_not_selected')
+        ->assertJsonMissingPath('data');
+});
+
+it('shows a super admin the selected company profile', function () {
+    $company = acmeCompany([
+        'name' => 'Acme',
+        'bin' => '123456789012',
+        'contact_person' => 'Ada Contact',
+        'phone' => '+7 (700) 123-45-67',
+        'email' => 'office@acme.test',
+    ]);
+    $owner = ownerSuperAdmin();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->getJson('/api/v1/company')
+        ->assertOk()
+        ->assertJsonPath('data.id', $company->id)
+        ->assertJsonPath('data.name', 'Acme');
 });
 
 it('refuses a guest', function () {
@@ -54,10 +73,10 @@ it('shows a viewer every profile field', function () {
         'phone' => '+7 (700) 123-45-67',
         'email' => 'office@acme.test',
     ]);
-    $company->timeZoneVersions()->create([
+    withCompanyContext($company->id, fn () => $company->timeZoneVersions()->create([
         'time_zone' => 'Europe/Moscow',
         'applies_from' => '2026-02-01 00:00:00',
-    ]);
+    ]));
     $viewer = acmeViewer(['company_id' => $company->id]);
 
     signedInAs($viewer)
@@ -81,7 +100,7 @@ it('refuses a viewer profile change and leaves the company unchanged', function 
         'email' => 'office@acme.test',
     ]);
     $viewer = acmeViewer(['company_id' => $company->id]);
-    $versions = $company->timeZoneVersions()->count();
+    $versions = withCompanyContext($company->id, fn () => $company->timeZoneVersions()->count());
 
     signedInAs($viewer)
         ->patchJson('/api/v1/company', [
@@ -94,7 +113,7 @@ it('refuses a viewer profile change and leaves the company unchanged', function 
         ])
         ->assertForbidden();
 
-    $fresh = $company->fresh();
+    $fresh = withCompanyContext($company->id, fn () => $company->fresh());
 
     expect($fresh)->not->toBeNull()
         ->and($fresh->name)->toBe('Acme')
@@ -156,4 +175,29 @@ it('does not reveal another company when a company admin probes the admin list p
         ->and($known->json('message'))->toBe($unknown->json('message'))
         ->and($known->json('message'))->not->toContain('Globex')
         ->and($known->json('message'))->not->toContain('123456789012');
+});
+
+it('lets a super admin change a deactivated selected company while company users stay signed out', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $admin = acmeAdmin(['company_id' => $company->id]);
+    persistCompany($company, ['deactivated_at' => '2026-01-15 12:00:00']);
+    $owner = ownerSuperAdmin();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->patchJson('/api/v1/company', ['name' => 'Acme West'])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Acme West');
+
+    $fresh = withCompanyContext($company->id, fn () => $company->fresh());
+
+    expect($fresh)->not->toBeNull()
+        ->and($fresh->name)->toBe('Acme West')
+        ->and($fresh->deactivated_at)->not->toBeNull();
+
+    test()->withHeaders(statefulHeaders())
+        ->postJson('/api/v1/auth/sign-in', [
+            'email' => $admin->email,
+            'password' => SAMPLE_PASSWORD,
+        ])
+        ->assertUnprocessable();
 });

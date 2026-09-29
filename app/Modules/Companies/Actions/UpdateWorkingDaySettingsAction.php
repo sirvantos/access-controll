@@ -8,18 +8,20 @@ use App\Modules\Companies\Data\UpdateWorkingDaySettingsData;
 use App\Modules\Companies\PublicApi\WorkingDaySettingsView;
 use App\Modules\Companies\Services\CompanyScheduleService;
 use App\Modules\Identity\PublicApi\Actor;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
 final class UpdateWorkingDaySettingsAction
 {
-    public function __construct(private CompanyScheduleService $schedule) {}
+    public function __construct(
+        private CompanyScheduleService $schedule,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(Actor $actor, UpdateWorkingDaySettingsData $data): WorkingDaySettingsView
     {
-        $companyId = $actor->actorCompanyId();
-
-        throw_unless(is_int($companyId), InvalidArgumentException::class);
+        $companyId = $this->companyContext->companyId();
 
         $startTime = Carbon::createFromFormat('!H:i', $data->startTime->toString());
         $endTime = Carbon::createFromFormat('!H:i', $data->endTime->toString());

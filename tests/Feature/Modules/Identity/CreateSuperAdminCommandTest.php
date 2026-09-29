@@ -19,7 +19,9 @@ it('creates a super admin who can sign in', function () {
         ->doesntExpectOutputToContain($password)
         ->assertExitCode(0);
 
-    $user = User::query()->where('email', SUPER_ADMIN_EMAIL)->first();
+    $user = withoutCompanyIsolation(
+        fn () => User::query()->where('email', SUPER_ADMIN_EMAIL)->first(),
+    );
 
     expect($user)->not->toBeNull()
         ->and($user->role)->toBe(Role::SuperAdmin)
@@ -44,8 +46,8 @@ it('refuses an email that is already registered in another case', function () {
         ->expectsOutputToContain(__('identity.email_already_registered'))
         ->assertExitCode(1);
 
-    expect(User::query()->where('role', Role::SuperAdmin)->count())->toBe(0)
-        ->and(User::query()->count())->toBe(1);
+    expect(withoutCompanyIsolation(fn () => User::query()->where('role', Role::SuperAdmin)->count()))->toBe(0)
+        ->and(withoutCompanyIsolation(fn () => User::query()->count()))->toBe(1);
 });
 
 it('refuses a password shorter than 8 characters', function () {
@@ -58,7 +60,7 @@ it('refuses a password shorter than 8 characters', function () {
         ->doesntExpectOutputToContain($password)
         ->assertExitCode(1);
 
-    expect(User::query()->count())->toBe(0);
+    expect(withoutCompanyIsolation(fn () => User::query()->count()))->toBe(0);
 });
 
 it('refuses a password confirmation that does not match', function () {
@@ -69,7 +71,7 @@ it('refuses a password confirmation that does not match', function () {
         ->doesntExpectOutputToContain(SAMPLE_PASSWORD)
         ->assertExitCode(1);
 
-    expect(User::query()->count())->toBe(0);
+    expect(withoutCompanyIsolation(fn () => User::query()->count()))->toBe(0);
 });
 
 it('refuses an invalid email', function () {
@@ -77,7 +79,7 @@ it('refuses an invalid email', function () {
         ->expectsOutputToContain(__('validation.email', ['attribute' => 'email']))
         ->assertExitCode(1);
 
-    expect(User::query()->count())->toBe(0);
+    expect(withoutCompanyIsolation(fn () => User::query()->count()))->toBe(0);
 });
 
 it('has no password option and no http route that creates a super admin', function () {
@@ -92,16 +94,18 @@ it('has no password option and no http route that creates a super admin', functi
 
     expect($createsSuperAdmin)->toBeFalse();
 
-    signedInAs(ownerSuperAdmin());
-    $this->flushSession();
-    auth('web')->logout();
+    withoutCompanyIsolation(function (): void {
+        signedInAs(ownerSuperAdmin());
+        $this->flushSession();
+        auth('web')->logout();
 
-    $this->withHeaders(statefulHeaders())
-        ->postJson('/api/v1/admin/super-admins', [
-            'email' => 'second-owner@example.com',
-            'password' => SAMPLE_PASSWORD,
-        ])
-        ->assertMethodNotAllowed();
+        $this->withHeaders(statefulHeaders())
+            ->postJson('/api/v1/admin/super-admins', [
+                'email' => 'second-owner@example.com',
+                'password' => SAMPLE_PASSWORD,
+            ])
+            ->assertMethodNotAllowed();
 
-    expect(User::query()->where('email', 'second-owner@example.com')->exists())->toBeFalse();
+        expect(User::query()->where('email', 'second-owner@example.com')->exists())->toBeFalse();
+    });
 });

@@ -112,6 +112,25 @@ it('does not deactivate or reactivate a Globex user for an Acme admin', function
         ->and($reactivateViewer->json('message'))->not->toContain('Globex');
 });
 
+it('returns the same not found json for a Globex user id and an unused id', function () {
+    $company = acmeCompany();
+    $admin = acmeAdmin(['company_id' => $company->id]);
+    $globexAdmin = globexAdmin();
+
+    signedInAs($admin);
+
+    $missingId = 9_999_994;
+    $missingResponse = $this->patchJson('/api/v1/company/users/'.$missingId, [
+        'role' => 'viewer',
+    ]);
+    $globexResponse = $this->patchJson('/api/v1/company/users/'.$globexAdmin->id, [
+        'role' => 'viewer',
+    ]);
+
+    expect($missingResponse->status())->toBe($globexResponse->status());
+    $globexResponse->assertExactJson($missingResponse->json());
+});
+
 it('does not change the role of a Globex user for an Acme admin', function () {
     $company = acmeCompany();
     $admin = acmeAdmin(['company_id' => $company->id]);

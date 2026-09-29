@@ -63,7 +63,7 @@ it('returns the same body for every rejected sign-in', function () {
     $logs = captureLogEvents();
     $admin = acmeAdmin();
     $deactivated = acmeViewer();
-    $deactivated->forceFill(['deactivated_at' => '2026-01-15 12:00:00'])->save();
+    persistUser($deactivated, ['deactivated_at' => '2026-01-15 12:00:00']);
     $company = Company::factory()->deactivated()->create(['name' => 'Closed Co']);
     $closed = User::factory()->companyAdmin($company)->create([
         'email' => 'closed@example.com',

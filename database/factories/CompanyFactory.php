@@ -6,7 +6,9 @@ namespace Database\Factories;
 
 use App\Modules\Companies\Data\WorkingDaySettingDefaults;
 use App\Modules\Companies\Models\Company;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
+use Database\Factories\Concerns\CreatesWhenIsolationUnbound;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use LogicException;
 
@@ -15,6 +17,8 @@ use LogicException;
  */
 class CompanyFactory extends Factory
 {
+    use CreatesWhenIsolationUnbound;
+
     private const string DEACTIVATED_AT = '2026-01-15 12:00:00';
 
     /**
@@ -42,30 +46,32 @@ class CompanyFactory extends Factory
 
     private function insertDefaultVersions(Company $company): Company
     {
-        $createdAt = $company->created_at;
+        return app(CompanyContext::class)->run($company->id, function () use ($company): Company {
+            $createdAt = $company->created_at;
 
-        throw_unless($createdAt instanceof CarbonInterface, LogicException::class);
+            throw_unless($createdAt instanceof CarbonInterface, LogicException::class);
 
-        $appliesFrom = $createdAt->copy()
-            ->timezone(WorkingDaySettingDefaults::DEFAULT_TIME_ZONE)
-            ->startOfDay()
-            ->utc();
+            $appliesFrom = $createdAt->copy()
+                ->timezone(WorkingDaySettingDefaults::DEFAULT_TIME_ZONE)
+                ->startOfDay()
+                ->utc();
 
-        $company->timeZoneVersions()->create([
-            'time_zone' => WorkingDaySettingDefaults::DEFAULT_TIME_ZONE,
-            'applies_from' => $appliesFrom,
-        ]);
+            $company->timeZoneVersions()->create([
+                'time_zone' => WorkingDaySettingDefaults::DEFAULT_TIME_ZONE,
+                'applies_from' => $appliesFrom,
+            ]);
 
-        $company->workingDaySettingVersions()->create([
-            'start_time' => WorkingDaySettingDefaults::DEFAULT_START_TIME,
-            'end_time' => WorkingDaySettingDefaults::DEFAULT_END_TIME,
-            'working_days' => WorkingDaySettingDefaults::DEFAULT_WORKING_DAYS,
-            'break_duration_minutes' => WorkingDaySettingDefaults::DEFAULT_BREAK_DURATION_MINUTES,
-            'break_deducted' => WorkingDaySettingDefaults::DEFAULT_BREAK_DEDUCTED,
-            'lateness_grace_minutes' => WorkingDaySettingDefaults::DEFAULT_LATENESS_GRACE_MINUTES,
-            'applies_from' => $appliesFrom,
-        ]);
+            $company->workingDaySettingVersions()->create([
+                'start_time' => WorkingDaySettingDefaults::DEFAULT_START_TIME,
+                'end_time' => WorkingDaySettingDefaults::DEFAULT_END_TIME,
+                'working_days' => WorkingDaySettingDefaults::DEFAULT_WORKING_DAYS,
+                'break_duration_minutes' => WorkingDaySettingDefaults::DEFAULT_BREAK_DURATION_MINUTES,
+                'break_deducted' => WorkingDaySettingDefaults::DEFAULT_BREAK_DEDUCTED,
+                'lateness_grace_minutes' => WorkingDaySettingDefaults::DEFAULT_LATENESS_GRACE_MINUTES,
+                'applies_from' => $appliesFrom,
+            ]);
 
-        return $company;
+            return $company;
+        });
     }
 }

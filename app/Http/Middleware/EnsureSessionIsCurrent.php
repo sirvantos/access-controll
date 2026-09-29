@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Modules\Identity\PublicApi\Actor;
 use App\Modules\Identity\PublicApi\SessionValidity;
+use App\Support\CompanyContextStore;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
@@ -48,6 +49,19 @@ class EnsureSessionIsCurrent
 
     private function endSession(Request $request): void
     {
+        $actor = $request->user();
+
+        if ($actor instanceof Actor) {
+            $store = app(CompanyContextStore::class);
+            $companyId = $actor->actorCompanyId();
+
+            if ($companyId !== null) {
+                $store->bindCompany($companyId);
+            }
+
+            $store->setActorId($actor->actorId());
+        }
+
         auth('web')->logout();
 
         if ($request->hasSession()) {

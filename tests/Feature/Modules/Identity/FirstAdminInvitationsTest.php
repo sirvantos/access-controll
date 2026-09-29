@@ -40,7 +40,9 @@ it('lets a super admin manage first-admin invitations until one is accepted', fu
         ->assertJsonPath('data.email', 'replacement@acme.test')
         ->assertJsonPath('data.role', 'company_admin');
 
-    $replacement = Invitation::query()->where('email', 'replacement@acme.test')->firstOrFail();
+    $replacement = withoutCompanyIsolation(
+        fn () => Invitation::query()->where('email', 'replacement@acme.test')->firstOrFail(),
+    );
 
     expect($replacement->role)->toBe(Role::CompanyAdmin)
         ->and($replacement->company_id)->toBe($company->id);

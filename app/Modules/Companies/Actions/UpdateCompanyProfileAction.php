@@ -9,9 +9,9 @@ use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\PublicApi\CompanyProfileView;
 use App\Modules\Companies\Services\CompanyScheduleService;
 use App\Modules\Identity\PublicApi\Actor;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Stringable;
-use InvalidArgumentException;
 use Spatie\LaravelData\Optional;
 
 final class UpdateCompanyProfileAction
@@ -19,13 +19,12 @@ final class UpdateCompanyProfileAction
     public function __construct(
         private CompanyScheduleService $schedule,
         private ShowCompanyProfileAction $showCompanyProfile,
+        private CompanyContext $companyContext,
     ) {}
 
     public function __invoke(Actor $actor, UpdateCompanyProfileData $data): CompanyProfileView
     {
-        $companyId = $actor->actorCompanyId();
-
-        throw_unless(is_int($companyId), InvalidArgumentException::class);
+        $companyId = $this->companyContext->companyId();
 
         DB::transaction(function () use ($companyId, $data): void {
             $attributes = $this->attributes($data);

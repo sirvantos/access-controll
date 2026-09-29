@@ -16,6 +16,15 @@ components:
       in: header
       name: X-XSRF-TOKEN
       description: CSRF token read from the XSRF-TOKEN cookie.
+  parameters:
+    XCompanyContext:
+      name: X-Company-Context
+      in: header
+      required: false
+      description: Required for a super admin on company-data routes. Integer company id that is already on this session's selection allow-list.
+      schema:
+        type: integer
+        minimum: 1
   schemas:
     Message:
       type: object
@@ -146,6 +155,14 @@ components:
           type: ["string", "null"]
         email:
           type: ["string", "null"]
+    SelectedCompany:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
     WorkingDaySettings:
       type: object
       required:
@@ -265,11 +282,14 @@ components:
           schema:
             $ref: "#/components/schemas/Message"
     Conflict:
-      description: The current state does not allow the action.
+      description: The current state does not allow the action. Super admin company-data requests without a valid X-Company-Context receive error_code company_not_selected. Other conflicts keep their own error_code (for example last_active_admin).
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/MessageWithErrorCode"
+          example:
+            message: Select a company before working with company data.
+            error_code: company_not_selected
     Gone:
       description: The link or invitation is no longer valid.
       content:
@@ -391,6 +411,7 @@ paths:
     get:
       summary: List users of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: query
           name: page
           schema:
@@ -417,9 +438,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     head:
       summary: List users of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: query
           name: page
           schema:
@@ -432,10 +456,13 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /company/users/{user}:
     patch:
       summary: Change a user of the signed-in company admin's company between company admin and viewer.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: path
           name: user
           required: true
@@ -466,6 +493,7 @@ paths:
     post:
       summary: Deactivate a user of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: path
           name: user
           required: true
@@ -494,6 +522,7 @@ paths:
     post:
       summary: Reactivate a user of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: path
           name: user
           required: true
@@ -516,6 +545,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /invitations/{token}:
     get:
       summary: Preview a pending invitation.
@@ -580,6 +611,7 @@ paths:
     get:
       summary: List pending invitations of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: query
           name: page
           schema:
@@ -606,9 +638,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     head:
       summary: List pending invitations of the signed-in company admin's company.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: query
           name: page
           schema:
@@ -621,8 +656,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     post:
       summary: Invite a user to the signed-in company admin's company.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "201":
           description: The invitation was stored and the email was queued.
@@ -638,12 +677,15 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
   /company/invitations/{invitation}/resend:
     post:
       summary: Rotate a pending invitation link and send a new email.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: path
           name: invitation
           required: true
@@ -674,6 +716,7 @@ paths:
     post:
       summary: Revoke a pending invitation.
       parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
         - in: path
           name: invitation
           required: true
@@ -729,6 +772,8 @@ paths:
   /company/working-day-settings:
     get:
       summary: Read the signed-in company admin or viewer's current working day settings.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "200":
           description: Latest saved working day settings.
@@ -744,8 +789,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     head:
       summary: Read the signed-in company admin or viewer's current working day settings.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "200":
           description: Latest saved working day settings.
@@ -753,8 +802,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     patch:
       summary: Replace the signed-in company admin's working day settings.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       requestBody:
         required: true
         content:
@@ -776,11 +829,71 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /company/media/{public_id}:
+    get:
+      summary: Stream company media bytes for the current company context.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
+        - name: public_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Stored file bytes.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    head:
+      summary: Stream company media bytes for the current company context.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
+        - name: public_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Stored file bytes.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /company:
     get:
       summary: Read the signed-in company admin or viewer's own company profile.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "200":
           description: Latest saved name, time zone, and optional details.
@@ -796,8 +909,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     patch:
       summary: Update the signed-in company admin's own company profile.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       requestBody:
         required: false
         content:
@@ -838,10 +955,14 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
     delete:
       summary: Refuse deletion. Companies are never deleted.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
@@ -849,11 +970,67 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
     head:
       summary: Read the signed-in company admin or viewer's own company profile.
+      parameters:
+        - $ref: "#/components/parameters/XCompanyContext"
       responses:
         "200":
           description: Latest saved name, time zone, and optional details.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /admin/selected-company:
+    post:
+      summary: Select a company for the super admin session allow-list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: integer
+      responses:
+        "200":
+          description: The selected company id and name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SelectedCompany"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      summary: Clear this tab's selected company on the client.
+      responses:
+        "200":
+          description: Selection cleared for this tab.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

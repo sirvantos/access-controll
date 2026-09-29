@@ -213,6 +213,7 @@ return [
         'break_duration_minutes' => 'break duration',
         'lateness_grace_minutes' => 'lateness grace period',
         'break_deducted' => 'break deducted',
+        'company_id' => 'company',
     ],
 
 ];

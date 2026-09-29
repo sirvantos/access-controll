@@ -6,10 +6,18 @@ namespace App\Modules\Identity\Actions;
 
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\CompanyUserView;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 
 final class ReactivateCompanyUserAction
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function __invoke(int $companyId, int $userId): CompanyUserView
+    {
+        return $this->companyContext->run($companyId, fn (): CompanyUserView => $this->reactivate($companyId, $userId));
+    }
+
+    private function reactivate(int $companyId, int $userId): CompanyUserView
     {
         $user = User::query()
             ->where('company_id', $companyId)

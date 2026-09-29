@@ -7,6 +7,7 @@ namespace App\Modules\Companies\Actions;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\PublicApi\CompanySummary;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -18,12 +19,23 @@ final class ListCompaniesAction
 {
     public const int COMPANY_LIST_PAGE_SIZE = 15;
 
-    public function __construct(private readonly FirstAdminInvitations $firstAdminInvitations) {}
+    public function __construct(
+        private readonly FirstAdminInvitations $firstAdminInvitations,
+        private readonly CompanyContext $companyContext,
+    ) {}
 
     /**
      * @return LengthAwarePaginator<int, CompanySummary>
      */
     public function __invoke(?Stringable $search, int $page): LengthAwarePaginator
+    {
+        return $this->companyContext->withoutIsolation(fn (): LengthAwarePaginator => $this->paginate($search, $page));
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, CompanySummary>
+     */
+    private function paginate(?Stringable $search, int $page): LengthAwarePaginator
     {
         $query = Company::query();
 

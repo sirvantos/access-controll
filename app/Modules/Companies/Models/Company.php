@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Companies\Models;
 
+use App\Support\BelongsToCompany;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -16,7 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
-    use HasFactory;
+    use BelongsToCompany, HasFactory;
+
+    public function companyIsolationColumn(): string
+    {
+        return 'id';
+    }
 
     public function isActive(): bool
     {

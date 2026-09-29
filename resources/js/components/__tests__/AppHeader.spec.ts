@@ -38,8 +38,11 @@ const owner: CurrentUser = {
 afterEach(async () => {
     vi.clearAllMocks();
     document.documentElement.lang = 'en';
+    sessionStorage.clear();
     const { useCurrentUser } = await import('../../composables/useCurrentUser');
     useCurrentUser().clear();
+    const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+    useSelectedCompany().clearSelectedCompany();
 });
 
 describe('AppHeader', () => {
@@ -78,8 +81,28 @@ describe('AppHeader', () => {
 
         expect(wrapper.get('[data-testid="companies-link"]').text()).toBe(t('companies.title'));
         expect(wrapper.get('[data-testid="companies-link"]').attributes('href')).toBe('/companies');
+        expect(wrapper.get('[data-testid="select-company-prompt"]').text()).toBe(
+            t('companies.selectPrompt'),
+        );
         expect(wrapper.find('[data-testid="company-users-link"]').exists()).toBe(false);
         expect(wrapper.find('[data-testid="company-profile-link"]').exists()).toBe(false);
+    });
+
+    it('shows the selected company name through t()', async () => {
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: 'Acme' });
+        const wrapper = await mountHeader(owner);
+
+        expect(wrapper.get('[data-testid="selected-company-name"]').text()).toBe(
+            t('companies.selected', { name: 'Acme' }),
+        );
+        expect(wrapper.find('[data-testid="select-company-prompt"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="company-profile-link"]').attributes('href')).toBe(
+            '/company',
+        );
+        expect(wrapper.get('[data-testid="company-users-link"]').attributes('href')).toBe(
+            '/company/users',
+        );
     });
 
     it('links a company admin to users and the company profile', async () => {
@@ -98,6 +121,20 @@ describe('AppHeader', () => {
             '/company',
         );
         expect(wrapper.find('[data-testid="companies-link"]').exists()).toBe(false);
+    });
+
+    it('shows the select prompt when this tab still has a stored company the session rejected', async () => {
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: 'Acme' });
+        useSelectedCompany().markSelectionRejected();
+        const wrapper = await mountHeader(owner);
+
+        expect(wrapper.get('[data-testid="select-company-prompt"]').text()).toBe(
+            t('companies.selectPrompt'),
+        );
+        expect(wrapper.find('[data-testid="selected-company-name"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="company-users-link"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="company-profile-link"]').exists()).toBe(false);
     });
 
     it('links a viewer to the company profile', async () => {

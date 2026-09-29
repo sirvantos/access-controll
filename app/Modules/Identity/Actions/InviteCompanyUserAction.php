@@ -11,6 +11,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Notifications\InvitationNotification;
 use App\Modules\Identity\PublicApi\PendingInvitationView;
 use App\Modules\Identity\Services\InvitationTokenService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -18,9 +19,17 @@ final class InviteCompanyUserAction
 {
     public const int INVITATION_LIFETIME_DAYS = 7;
 
-    public function __construct(private InvitationTokenService $tokens) {}
+    public function __construct(
+        private InvitationTokenService $tokens,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(int $companyId, InviteUserData $data): PendingInvitationView
+    {
+        return $this->companyContext->run($companyId, fn (): PendingInvitationView => $this->invite($companyId, $data));
+    }
+
+    private function invite(int $companyId, InviteUserData $data): PendingInvitationView
     {
         throw_if(
             User::emailIsRegistered($data->email),

@@ -41,14 +41,14 @@ it('saves valid settings and shows them immediately while today keeps the previo
 it('explains invalid settings and stores no new version', function (array $payload, string $field) {
     $company = acmeCompany(['name' => 'Acme']);
     $admin = acmeAdmin(['company_id' => $company->id]);
-    $versions = $company->workingDaySettingVersions()->count();
+    $versions = withCompanyContext($company->id, fn () => $company->workingDaySettingVersions()->count());
 
     signedInAs($admin)
         ->patchJson('/api/v1/company/working-day-settings', defaultWorkingDaySettingsPayload($payload))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
 
-    expect($company->workingDaySettingVersions()->count())->toBe($versions);
+    expect(withCompanyContext($company->id, fn () => $company->workingDaySettingVersions()->count()))->toBe($versions);
 })->with([
     'end not after start' => [['start_time' => '18:00', 'end_time' => '09:00'], 'end_time'],
     'no working days' => [['working_days' => []], 'working_days'],
@@ -114,24 +114,45 @@ it('refuses a company admin probing another company through an admin path', func
             ->and($unknown->json('message'))->not->toContain('Globex');
     }
 
-    expect(Company::query()->find($globex->id)?->name)->toBe('Globex')
-        ->and($globex->workingDaySettingVersions()->count())->toBe(1);
+    expect(withCompanyContext($globex->id, fn () => Company::query()->find($globex->id)?->name))->toBe('Globex')
+        ->and(withCompanyContext($globex->id, fn () => $globex->workingDaySettingVersions()->count()))->toBe(1);
 });
 
-it('refuses a viewer and a super admin', function (string $role) {
+it('refuses a viewer settings change', function () {
     $company = acmeCompany(['name' => 'Acme']);
-    $user = $role === 'viewer'
-        ? acmeViewer(['company_id' => $company->id])
-        : ownerSuperAdmin();
+    $viewer = acmeViewer(['company_id' => $company->id]);
 
-    signedInAs($user)
+    signedInAs($viewer)
         ->patchJson('/api/v1/company/working-day-settings', defaultWorkingDaySettingsPayload([
             'start_time' => '08:00',
         ]))
         ->assertForbidden();
 
-    expect($company->workingDaySettingVersions()->count())->toBe(1);
-})->with([
-    'viewer' => 'viewer',
-    'super admin' => 'super_admin',
-]);
+    expect(withCompanyContext($company->id, fn () => $company->workingDaySettingVersions()->count()))->toBe(1);
+});
+
+it('asks a super admin without a selected company to select one before changing settings', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $owner = ownerSuperAdmin();
+
+    signedInAs($owner)
+        ->patchJson('/api/v1/company/working-day-settings', defaultWorkingDaySettingsPayload([
+            'start_time' => '08:00',
+        ]))
+        ->assertConflict()
+        ->assertJsonPath('error_code', 'company_not_selected');
+
+    expect(withCompanyContext($company->id, fn () => $company->workingDaySettingVersions()->count()))->toBe(1);
+});
+
+it('lets a super admin with a selected company update working day settings', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $owner = ownerSuperAdmin();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->patchJson('/api/v1/company/working-day-settings', defaultWorkingDaySettingsPayload([
+            'start_time' => '08:00',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('data.start_time', '08:00');
+});

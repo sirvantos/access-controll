@@ -10,6 +10,9 @@ use App\Modules\Identity\Notifications\InvitationNotification;
 use App\Modules\Identity\PublicApi\Actor;
 use App\Modules\Identity\PublicApi\Role;
 use App\Modules\Identity\Services\SignInThrottleService;
+use App\Modules\Tenancy\Data\TenancyLimits;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
+use App\Support\CompanyContextStore;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -152,8 +155,91 @@ function expectAuthenticationFailureLogs(MessageLoggedBucket $bucket, array $sec
     }
 }
 
+/**
+ * @template TReturn
+ *
+ * @param  Closure(): TReturn  $callback
+ * @return TReturn
+ */
+function withoutCompanyIsolation(Closure $callback): mixed
+{
+    return app(CompanyContext::class)->withoutIsolation($callback);
+}
+
+/**
+ * @template TReturn
+ *
+ * @param  Closure(): TReturn  $callback
+ * @return TReturn
+ */
+function withCompanyContext(int $companyId, Closure $callback): mixed
+{
+    return app(CompanyContext::class)->run($companyId, $callback);
+}
+
+/**
+ * @param  array<string, mixed>  $attributes
+ */
+function persistUser(User $user, array $attributes): void
+{
+    $save = function () use ($user, $attributes): void {
+        $user->forceFill($attributes)->save();
+    };
+
+    if ($user->company_id === null) {
+        withoutCompanyIsolation($save);
+
+        return;
+    }
+
+    withCompanyContext($user->company_id, $save);
+}
+
+function freshUser(User $user): ?User
+{
+    if ($user->company_id === null) {
+        return withoutCompanyIsolation(fn (): ?User => $user->fresh());
+    }
+
+    return withCompanyContext($user->company_id, fn (): ?User => $user->fresh());
+}
+
+function refreshUser(User $user): User
+{
+    if ($user->company_id === null) {
+        return withoutCompanyIsolation(fn (): User => $user->refresh());
+    }
+
+    return withCompanyContext($user->company_id, fn (): User => $user->refresh());
+}
+
+/**
+ * @param  array<string, mixed>  $attributes
+ */
+function persistCompany(Company $company, array $attributes): void
+{
+    withCompanyContext($company->id, function () use ($company, $attributes): void {
+        $company->forceFill($attributes)->save();
+    });
+}
+
+function freshCompany(Company $company): ?Company
+{
+    return withCompanyContext($company->id, fn (): ?Company => $company->fresh());
+}
+
 function signedInAs(Actor $user): TestCase
 {
+    $store = app(CompanyContextStore::class);
+    $companyId = $user->actorCompanyId();
+
+    if ($companyId !== null) {
+        $store->bindCompany($companyId);
+    }
+
+    $store->setActorId($user->actorId());
+    $store->setActorRole($user->actorRole()->value);
+
     /** @var TestCase $case */
     $case = test();
 
@@ -161,6 +247,24 @@ function signedInAs(Actor $user): TestCase
         ->actingAs($user, 'web')
         ->withSession([EnsureSessionIsCurrent::SESSION_KEY => $user->sessionVersion()])
         ->withHeaders(statefulHeaders());
+}
+
+/**
+ * @return array<string, string>
+ */
+function companyContextHeaders(int $companyId): array
+{
+    return array_merge(statefulHeaders(), [
+        TenancyLimits::COMPANY_CONTEXT_HEADER => (string) $companyId,
+    ]);
+}
+
+function signedInWithSelectedCompany(Actor $user, int $companyId): TestCase
+{
+    $case = signedInAs($user);
+    $case->postJson('/api/v1/admin/selected-company', ['company_id' => $companyId])->assertOk();
+
+    return $case->withHeaders(companyContextHeaders($companyId));
 }
 
 /**

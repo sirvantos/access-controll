@@ -9,24 +9,23 @@ use App\Http\Requests\InviteUserRequest;
 use App\Http\Resources\PendingInvitationResource;
 use App\Modules\Identity\Actions\InviteCompanyUserAction;
 use App\Modules\Identity\PublicApi\Actor;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
-use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
 
 final class InviteCompanyUserController extends Controller
 {
-    public function __invoke(InviteUserRequest $request, InviteCompanyUserAction $action): JsonResponse
-    {
+    public function __invoke(
+        InviteUserRequest $request,
+        InviteCompanyUserAction $action,
+        CompanyContext $companyContext,
+    ): JsonResponse {
         $actor = $request->user();
 
         throw_unless($actor instanceof Actor, AuthenticationException::class);
 
-        $companyId = $actor->actorCompanyId();
-
-        throw_unless(is_int($companyId), InvalidArgumentException::class);
-
-        return (new PendingInvitationResource($action($companyId, $request->toDto())))
+        return (new PendingInvitationResource($action($companyContext->companyId(), $request->toDto())))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }

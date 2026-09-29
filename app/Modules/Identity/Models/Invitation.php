@@ -7,6 +7,7 @@ namespace App\Modules\Identity\Models;
 use App\Modules\Identity\Data\InvitationState;
 use App\Modules\Identity\PublicApi\PendingInvitationView;
 use App\Modules\Identity\PublicApi\Role;
+use App\Support\BelongsToCompany;
 use Database\Factories\InvitationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 class Invitation extends Model
 {
     /** @use HasFactory<InvitationFactory> */
-    use HasFactory;
+    use BelongsToCompany, HasFactory;
 
     public function state(): InvitationState
     {

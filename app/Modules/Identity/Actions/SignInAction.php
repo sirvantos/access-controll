@@ -11,6 +11,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\Actor;
 use App\Modules\Identity\Services\AccountEligibilityService;
 use App\Modules\Identity\Services\SignInThrottleService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Stringable;
 use Illuminate\Support\Timebox;
@@ -30,6 +31,7 @@ final class SignInAction
     public function __construct(
         private SignInThrottleService $throttle,
         private AccountEligibilityService $eligibility,
+        private CompanyContext $companyContext,
     ) {}
 
     public function __invoke(SignInAttempt $attempt): Actor
@@ -42,7 +44,9 @@ final class SignInAction
 
     private function attempt(SignInAttempt $attempt, Timebox $timebox): Actor
     {
-        $user = User::query()->where('email', $attempt->email)->first();
+        $user = $this->companyContext->withoutIsolation(
+            fn (): ?User => User::query()->where('email', $attempt->email)->first(),
+        );
         $userId = $user instanceof User ? $user->id : null;
 
         throw_if(

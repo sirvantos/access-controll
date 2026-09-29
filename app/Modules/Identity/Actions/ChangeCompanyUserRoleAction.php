@@ -8,12 +8,21 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\CompanyUserView;
 use App\Modules\Identity\PublicApi\Role;
 use App\Modules\Identity\Services\AdminSeatGuardService;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 
 final class ChangeCompanyUserRoleAction
 {
-    public function __construct(private AdminSeatGuardService $adminSeatGuard) {}
+    public function __construct(
+        private AdminSeatGuardService $adminSeatGuard,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function __invoke(int $companyId, int $userId, Role $role): CompanyUserView
+    {
+        return $this->companyContext->run($companyId, fn (): CompanyUserView => $this->changeRole($companyId, $userId, $role));
+    }
+
+    private function changeRole(int $companyId, int $userId, Role $role): CompanyUserView
     {
         $user = $this->userInCompany($companyId, $userId);
 

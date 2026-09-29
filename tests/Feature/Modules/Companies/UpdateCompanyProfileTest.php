@@ -59,7 +59,7 @@ it('leaves omitted name and time zone unchanged', function () {
         ->assertJsonPath('data.time_zone', 'Asia/Almaty')
         ->assertJsonPath('data.contact_person', 'Only Contact');
 
-    expect($company->timeZoneVersions()->count())->toBe(1);
+    expect(withCompanyContext($company->id, fn () => $company->timeZoneVersions()->count()))->toBe(1);
 });
 
 it('explains an empty name, an unknown time zone, and a bad optional format without saving', function (string $field, mixed $value) {
@@ -71,18 +71,18 @@ it('explains an empty name, an unknown time zone, and a bad optional format with
         'email' => 'office@acme.test',
     ]);
     $admin = acmeAdmin(['company_id' => $company->id]);
-    $versions = $company->timeZoneVersions()->count();
+    $versions = withCompanyContext($company->id, fn () => $company->timeZoneVersions()->count());
 
     signedInAs($admin)
         ->patchJson('/api/v1/company', [$field => $value])
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
 
-    $company->refresh();
+    withCompanyContext($company->id, fn () => $company->refresh());
 
     expect($company->name)->toBe('Acme')
         ->and($company->bin)->toBe(sampleCompanyBin())
-        ->and($company->timeZoneVersions()->count())->toBe($versions);
+        ->and(withCompanyContext($company->id, fn () => $company->timeZoneVersions()->count()))->toBe($versions);
 })->with([
     'empty name' => ['name', ''],
     'unknown time zone' => ['time_zone', 'Not/AZone'],
@@ -162,24 +162,44 @@ it('refuses a company admin probing another company through an admin path', func
             ->and($unknown->json('message'))->not->toContain('Globex');
     }
 
-    expect(Company::query()->find($globex->id)?->name)->toBe('Globex');
+    expect(withCompanyContext($globex->id, fn () => Company::query()->find($globex->id)?->name))->toBe('Globex');
 });
 
-it('refuses a viewer and a super admin', function (string $role) {
+it('refuses a viewer profile change', function () {
     $company = acmeCompany(['name' => 'Acme']);
-    $user = $role === 'viewer'
-        ? acmeViewer(['company_id' => $company->id])
-        : ownerSuperAdmin();
+    $viewer = acmeViewer(['company_id' => $company->id]);
 
-    signedInAs($user)
+    signedInAs($viewer)
         ->patchJson('/api/v1/company', ['name' => 'Hacked'])
         ->assertForbidden();
 
     expect($company->refresh()->name)->toBe('Acme');
-})->with([
-    'viewer' => 'viewer',
-    'super admin' => 'super_admin',
-]);
+});
+
+it('asks a super admin without a selected company to select one before changing the profile', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $owner = ownerSuperAdmin();
+
+    signedInAs($owner)
+        ->patchJson('/api/v1/company', ['name' => 'Hacked'])
+        ->assertConflict()
+        ->assertJsonPath('error_code', 'company_not_selected');
+
+    expect($company->refresh()->name)->toBe('Acme');
+});
+
+it('lets a super admin with a selected company update the profile', function () {
+    $logs = captureLogEvents();
+    $company = acmeCompany(['name' => 'Acme']);
+    $owner = ownerSuperAdmin();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->patchJson('/api/v1/company', ['name' => 'Alma Stroy'])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Alma Stroy');
+
+    expectNothingLogged($logs);
+});
 
 it('does not define company deletion', function () {
     $admin = acmeAdmin();

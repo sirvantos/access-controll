@@ -31,6 +31,17 @@ it('documents every api v1 route', function () {
     }
 });
 
+it('documents selected company, media bytes, and company_not_selected without test probes', function () {
+    $yaml = (string) file_get_contents(public_path('swagger.yaml'));
+
+    expect($yaml)->toContain('/admin/selected-company')
+        ->and($yaml)->toContain('/company/media/{public_id}')
+        ->and($yaml)->toContain('X-Company-Context')
+        ->and($yaml)->toContain('company_not_selected')
+        ->and($yaml)->toContain('format: binary')
+        ->and($yaml)->not->toContain('/_test/');
+});
+
 /**
  * @return array<string, list<string>>
  */

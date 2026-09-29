@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Companies\Models;
 
 use App\Modules\Companies\PublicApi\WeekDay;
+use App\Support\BelongsToCompany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class CompanyWorkingDaySettingVersion extends Model
 {
+    use BelongsToCompany;
+
     public const ?string UPDATED_AT = null;
 
     /**

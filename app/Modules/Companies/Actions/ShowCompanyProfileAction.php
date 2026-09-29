@@ -8,17 +8,20 @@ use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\Models\CompanyTimeZoneVersion;
 use App\Modules\Companies\PublicApi\CompanyProfileView;
 use App\Modules\Identity\PublicApi\Actor;
-use InvalidArgumentException;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use LogicException;
 
 final class ShowCompanyProfileAction
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function __invoke(Actor $actor): CompanyProfileView
     {
-        $companyId = $actor->actorCompanyId();
+        return $this->profile($this->companyContext->companyId());
+    }
 
-        throw_unless(is_int($companyId), InvalidArgumentException::class);
-
+    private function profile(int $companyId): CompanyProfileView
+    {
         $company = Company::query()->findOrFail($companyId);
         $timeZone = $company->timeZoneVersions()->orderByDesc('id')->first();
 

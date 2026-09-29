@@ -15,12 +15,18 @@ import {
     type Company,
     type PendingInvitation,
 } from '../api/adminCompanies';
+import {
+    clearSelectedCompany as clearSelectedCompanyRequest,
+    selectCompany,
+} from '../api/selectedCompany';
 import { ApiError } from '../api/client';
 import type { PaginationMeta, Role } from '../api/types';
+import { useSelectedCompany } from '../composables/useSelectedCompany';
 import { t } from '../utils/i18n';
 
 const route = useRoute();
 const router = useRouter();
+const { setSelectedCompany, clearSelectedCompany } = useSelectedCompany();
 const companies = ref<Company[]>([]);
 const invitations = ref<Record<number, PendingInvitation[]>>({});
 const meta = ref<PaginationMeta | null>(null);
@@ -237,6 +243,16 @@ async function reactivate(id: number): Promise<void> {
     await refresh();
 }
 
+async function select(company: Company): Promise<void> {
+    const body = await selectCompany(company.id);
+    setSelectedCompany(body.data);
+}
+
+async function clearSelection(): Promise<void> {
+    await clearSelectedCompanyRequest();
+    clearSelectedCompany();
+}
+
 async function changeInvitation(companyId: number, action: () => Promise<unknown>): Promise<void> {
     invitationErrors.value = { ...invitationErrors.value, [companyId]: null };
 
@@ -418,6 +434,14 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
                     <td class="py-2">{{ company.created_at }}</td>
                     <td class="py-2">
                         <button
+                            type="button"
+                            :data-testid="`select-company-${company.id}`"
+                            class="mr-2 rounded border border-zinc-300 px-3 py-1"
+                            @click="select(company)"
+                        >
+                            {{ t('companies.select') }}
+                        </button>
+                        <button
                             v-if="company.is_active"
                             type="button"
                             :data-testid="`deactivate-company-${company.id}`"
@@ -439,6 +463,14 @@ async function changeInvitation(companyId: number, action: () => Promise<unknown
                 </tr>
             </tbody>
         </table>
+        <button
+            type="button"
+            data-testid="clear-selected-company"
+            class="w-fit rounded border border-zinc-300 px-3 py-1"
+            @click="clearSelection"
+        >
+            {{ t('companies.clear') }}
+        </button>
         <section
             v-for="company in awaitingCompanies"
             :key="`invitations-${company.id}`"

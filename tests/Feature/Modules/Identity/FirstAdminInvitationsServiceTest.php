@@ -19,7 +19,9 @@ it('stores a company admin invitation and notifies the invitee', function () {
 
     $invitations->invite($company->id, 'Admin@Acme.Test');
 
-    $invitation = Invitation::query()->where('email', 'admin@acme.test')->first();
+    $invitation = withoutCompanyIsolation(
+        fn () => Invitation::query()->where('email', 'admin@acme.test')->first(),
+    );
 
     expect($invitation)->not->toBeNull()
         ->and($invitation->role)->toBe(Role::CompanyAdmin)
@@ -53,7 +55,7 @@ it('refuses an email that already belongs to a user', function () {
 
     expect($caught)->toBeInstanceOf(EmailAlreadyRegisteredException::class)
         ->and($caught?->field)->toBe('first_admin_email')
-        ->and(Invitation::query()->count())->toBe(0);
+        ->and(withoutCompanyIsolation(fn () => Invitation::query()->count()))->toBe(0);
 
     Notification::assertNothingSent();
     expectNothingLogged($logs);

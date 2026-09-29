@@ -50,6 +50,7 @@ afterEach(() => {
     vi.unstubAllGlobals();
     vi.resetModules();
     document.documentElement.lang = 'en';
+    sessionStorage.clear();
 });
 
 describe('router guards', () => {
@@ -117,10 +118,34 @@ describe('router guards', () => {
         expect(router.currentRoute.value.path).toBe('/company');
     });
 
-    it('sends a super admin away from the company profile', async () => {
+    it('sends a super admin without a selection away from company pages', async () => {
         const { router } = await boot(owner, '/company');
 
-        expect(router.currentRoute.value.path).toBe('/');
+        expect(router.currentRoute.value.path).toBe('/companies');
+    });
+
+    it('sends a super admin without a selection away from company users', async () => {
+        const { router } = await boot(owner, '/company/users');
+
+        expect(router.currentRoute.value.path).toBe('/companies');
+    });
+
+    it('keeps a super admin with a selection on the company profile', async () => {
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: 'Acme' });
+
+        const { router } = await boot(owner, '/company');
+
+        expect(router.currentRoute.value.path).toBe('/company');
+    });
+
+    it('keeps a super admin with a selection on company users', async () => {
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: 'Acme' });
+
+        const { router } = await boot(owner, '/company/users');
+
+        expect(router.currentRoute.value.path).toBe('/company/users');
     });
 
     it('sends a viewer away from the companies page', async () => {
@@ -128,6 +153,73 @@ describe('router guards', () => {
 
         expect(router.currentRoute.value.path).toBe('/');
         expect(root.textContent).toContain(t('home.placeholder'));
+    });
+
+    it('sends a super admin to companies after 409 company_not_selected without clearing the allow-list', async () => {
+        const { useSelectedCompany } = await import('../../composables/useSelectedCompany');
+        useSelectedCompany().setSelectedCompany({ id: 3, name: 'Acme' });
+
+        const { router, root, fetchMock } = await boot(owner, '/company');
+
+        expect(router.currentRoute.value.path).toBe('/company');
+
+        fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+            const url = String(input);
+
+            if (url === '/api/v1/me') {
+                return jsonResponse({ data: owner }, 200);
+            }
+
+            if (url === '/api/v1/company' || url.startsWith('/api/v1/company/')) {
+                return jsonResponse(
+                    { message: 'Select a company.', error_code: 'company_not_selected' },
+                    409,
+                );
+            }
+
+            if (url === '/api/v1/time-zones') {
+                return jsonResponse(
+                    { data: { identifiers: ['Asia/Almaty', 'Europe/Moscow'] } },
+                    200,
+                );
+            }
+
+            if (url.startsWith('/api/v1/admin/companies')) {
+                return jsonResponse(emptyPage, 200);
+            }
+
+            return jsonResponse({ message: 'Not found.' }, 404);
+        });
+
+        const { apiRequest } = await import('../../api/client');
+
+        await expect(apiRequest('/api/v1/company')).rejects.toMatchObject({
+            status: 409,
+            errorCode: 'company_not_selected',
+        });
+        await flushPromises();
+
+        expect(router.currentRoute.value.path).toBe('/companies');
+        expect(root.textContent).toContain(t('companies.selectPrompt'));
+        expect(useSelectedCompany().selectedCompany.value).toEqual({ id: 3, name: 'Acme' });
+        expect(useSelectedCompany().hasUsableSelection.value).toBe(false);
+        expect(
+            fetchMock.mock.calls.some(
+                ([request, init]) =>
+                    String(request) === '/api/v1/admin/selected-company' &&
+                    (init?.method ?? 'GET').toUpperCase() === 'DELETE',
+            ),
+        ).toBe(false);
+
+        await router.push('/company');
+        await flushPromises();
+
+        expect(router.currentRoute.value.path).toBe('/companies');
+
+        await router.push('/company/users');
+        await flushPromises();
+
+        expect(router.currentRoute.value.path).toBe('/companies');
     });
 
     it('clears the current user and goes to sign-in after a 401', async () => {

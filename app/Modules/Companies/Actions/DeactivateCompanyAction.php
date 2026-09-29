@@ -8,6 +8,7 @@ use App\Modules\Companies\Models\Company;
 use App\Modules\Companies\PublicApi\CompanyDeactivated;
 use App\Modules\Companies\PublicApi\CompanySummary;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -15,16 +16,21 @@ use Throwable;
 
 final readonly class DeactivateCompanyAction
 {
-    public function __construct(private FirstAdminInvitations $firstAdminInvitations) {}
+    public function __construct(
+        private FirstAdminInvitations $firstAdminInvitations,
+        private CompanyContext $companyContext,
+    ) {}
 
     /**
      * @throws Throwable
      */
     public function __invoke(int $companyId): CompanySummary
     {
-        $company = DB::transaction(fn (): Company => $this->deactivate($companyId));
+        return $this->companyContext->withoutIsolation(function () use ($companyId): CompanySummary {
+            $company = DB::transaction(fn (): Company => $this->deactivate($companyId));
 
-        return $this->summary($company);
+            return $this->summary($company);
+        });
     }
 
     private function deactivate(int $companyId): Company

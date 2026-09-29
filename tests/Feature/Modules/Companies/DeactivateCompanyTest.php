@@ -26,8 +26,8 @@ it('ends company sessions, refuses sign-in, and invalidates reset links', functi
         ->assertJsonPath('data.name', 'Acme')
         ->assertJsonPath('data.is_active', false);
 
-    $admin->refresh();
-    $viewer->refresh();
+    refreshUser($admin);
+    refreshUser($viewer);
 
     expect($admin->session_version)->toBe($adminVersion + 1)
         ->and($viewer->session_version)->toBe($viewerVersion + 1)
@@ -38,7 +38,7 @@ it('ends company sessions, refuses sign-in, and invalidates reset links', functi
     auth()->forgetGuards();
 
     test()
-        ->actingAs($admin->fresh(), 'web')
+        ->actingAs(freshUser($admin), 'web')
         ->withSession([EnsureSessionIsCurrent::SESSION_KEY => $adminVersion])
         ->withHeaders(statefulHeaders())
         ->getJson('/api/v1/me')
@@ -49,7 +49,7 @@ it('ends company sessions, refuses sign-in, and invalidates reset links', functi
     auth()->forgetGuards();
 
     test()
-        ->actingAs($viewer->fresh(), 'web')
+        ->actingAs(freshUser($viewer), 'web')
         ->withSession([EnsureSessionIsCurrent::SESSION_KEY => $viewerVersion])
         ->withHeaders(statefulHeaders())
         ->getJson('/api/v1/me')
@@ -95,14 +95,14 @@ it('does nothing when the company is already deactivated', function () {
         ->postJson('/api/v1/admin/companies/'.$company->id.'/deactivate')
         ->assertOk();
 
-    $version = $admin->fresh()?->session_version;
+    $version = freshUser($admin)?->session_version;
 
     signedInAs($owner)
         ->postJson('/api/v1/admin/companies/'.$company->id.'/deactivate')
         ->assertOk()
         ->assertJsonPath('data.is_active', false);
 
-    expect($admin->fresh()?->session_version)->toBe($version);
+    expect(freshUser($admin)?->session_version)->toBe($version);
 });
 
 it('keeps details and version rows when a company is deactivated', function () {
@@ -116,10 +116,16 @@ it('keeps details and version rows when a company is deactivated', function () {
     $admin = acmeAdmin(['company_id' => $company->id, 'email' => 'admin@acme.test']);
     $viewer = acmeViewer(['company_id' => $company->id, 'email' => 'viewer@acme.test']);
     $owner = ownerSuperAdmin();
-    $before = $company->fresh();
+    $before = withCompanyContext($company->id, fn () => $company->fresh());
     $storedUsers = storedCompanyUsers($company->id);
-    $timeZones = CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
-    $settings = CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get();
+    $timeZones = withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    );
+    $settings = withCompanyContext(
+        $company->id,
+        fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    );
 
     signedInAs($owner)
         ->postJson('/api/v1/admin/companies/'.$company->id.'/deactivate')
@@ -127,7 +133,7 @@ it('keeps details and version rows when a company is deactivated', function () {
         ->assertJsonPath('data.is_active', false)
         ->assertJsonPath('data.bin', '123456789012');
 
-    $after = $company->fresh();
+    $after = withCompanyContext($company->id, fn () => $company->fresh());
 
     expect($after)->not->toBeNull()
         ->and($after->bin)->toBe('123456789012')
@@ -139,11 +145,20 @@ it('keeps details and version rows when a company is deactivated', function () {
         ->and($after->deactivated_at)->not->toBeNull()
         ->and($before?->name_normalized)->toBe($after->name_normalized)
         ->and(storedCompanyUsers($company->id))->toBe($storedUsers)
-        ->and(User::query()->whereKey([$admin->id, $viewer->id])->count())->toBe(2);
+        ->and(withCompanyContext(
+            $company->id,
+            fn () => User::query()->whereKey([$admin->id, $viewer->id])->count(),
+        ))->toBe(2);
 
-    expect(companyVersionSnapshots(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+    expect(companyVersionSnapshots(withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    )))
         ->toBe(companyVersionSnapshots($timeZones))
-        ->and(companyVersionSnapshots(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+        ->and(companyVersionSnapshots(withCompanyContext(
+            $company->id,
+            fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+        )))
         ->toBe(companyVersionSnapshots($settings));
 
     signedInAs($owner)
@@ -151,8 +166,14 @@ it('keeps details and version rows when a company is deactivated', function () {
         ->assertOk()
         ->assertJsonPath('data.is_active', false);
 
-    expect(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->count())->toBe($timeZones->count())
-        ->and(CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->count())->toBe($settings->count());
+    expect(withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->count(),
+    ))->toBe($timeZones->count())
+        ->and(withCompanyContext(
+            $company->id,
+            fn () => CompanyWorkingDaySettingVersion::query()->where('company_id', $company->id)->count(),
+        ))->toBe($settings->count());
 });
 
 it('keeps mutated details, settings, and version rows across deactivation and reactivation', function () {
@@ -180,11 +201,12 @@ it('keeps mutated details, settings, and version rows across deactivation and re
         ->assertOk()
         ->assertJsonPath('data.start_time', '08:00');
 
-    $fresh = $company->fresh();
+    $fresh = withCompanyContext($company->id, fn () => $company->fresh());
     $details = companyDetailSnapshot($fresh);
-    $timeZones = companyVersionSnapshots(
-        CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
-    );
+    $timeZones = companyVersionSnapshots(withCompanyContext(
+        $company->id,
+        fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+    ));
     $settings = storedWorkingDaySettingVersions($company->id);
 
     expect($settings)->toHaveCount(2);
@@ -205,16 +227,21 @@ it('keeps mutated details, settings, and version rows across deactivation and re
         ->assertJsonPath('data.is_active', true)
         ->assertJsonPath('data.bin', '123456789012');
 
-    expect(companyDetailSnapshot($company->fresh()))->toBe($details)
-        ->and(companyVersionSnapshots(CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get()))
+    expect(companyDetailSnapshot(withCompanyContext($company->id, fn () => $company->fresh())))->toBe($details)
+        ->and(companyVersionSnapshots(withCompanyContext(
+            $company->id,
+            fn () => CompanyTimeZoneVersion::query()->where('company_id', $company->id)->orderBy('id')->get(),
+        )))
         ->toBe($timeZones)
         ->and(storedWorkingDaySettingVersions($company->id))->toBe($settings);
 
-    auth('web')->logout();
-    $this->flushSession();
-    session()->invalidate();
-    auth()->forgetGuards();
-    $admin->refresh();
+    withoutCompanyIsolation(function (): void {
+        auth('web')->logout();
+        $this->flushSession();
+        session()->invalidate();
+        auth()->forgetGuards();
+    });
+    withCompanyContext($company->id, fn () => $admin->refresh());
 
     signedInAs($admin)
         ->getJson('/api/v1/company')
@@ -236,8 +263,8 @@ it('refuses to delete a company', function () {
         ->deleteJson('/api/v1/admin/companies/'.$company->id)
         ->assertMethodNotAllowed();
 
-    expect($company->fresh())->not->toBeNull()
-        ->and($company->fresh()?->name)->toBe('Acme');
+    expect(freshCompany($company))->not->toBeNull()
+        ->and(freshCompany($company)?->name)->toBe('Acme');
 });
 
 it('refuses company admin and viewer deactivate and reactivate without revealing the company', function () {
@@ -270,7 +297,7 @@ it('refuses company admin and viewer deactivate and reactivate without revealing
         }
     }
 
-    expect($globex->fresh()?->isActive())->toBeTrue();
+    expect(freshCompany($globex)?->isActive())->toBeTrue();
 });
 
 /**
@@ -311,7 +338,7 @@ function companyDetailSnapshot(?Company $company): array
  */
 function storedWorkingDaySettingVersions(int $companyId): array
 {
-    return CompanyWorkingDaySettingVersion::query()
+    return withCompanyContext($companyId, fn () => CompanyWorkingDaySettingVersion::query()
         ->where('company_id', $companyId)
         ->orderBy('id')
         ->get()
@@ -328,7 +355,7 @@ function storedWorkingDaySettingVersions(int $companyId): array
             'lateness_grace_minutes' => $row->lateness_grace_minutes,
             'applies_from' => $row->applies_from?->utc()->toIso8601String(),
         ])
-        ->all();
+        ->all());
 }
 
 /**
@@ -336,7 +363,7 @@ function storedWorkingDaySettingVersions(int $companyId): array
  */
 function storedCompanyUsers(int $companyId): array
 {
-    return User::query()
+    return withCompanyContext($companyId, fn () => User::query()
         ->where('company_id', $companyId)
         ->orderBy('id')
         ->get()
@@ -346,5 +373,5 @@ function storedCompanyUsers(int $companyId): array
             'company_id' => $user->company_id,
             'role' => $user->role->value,
         ])
-        ->all();
+        ->all());
 }

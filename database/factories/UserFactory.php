@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Modules\Companies\Models\Company;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\Role;
+use Database\Factories\Concerns\CreatesWhenIsolationUnbound;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -16,6 +17,8 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
+    use CreatesWhenIsolationUnbound;
+
     private const string DEACTIVATED_AT = '2026-01-15 12:00:00';
 
     protected static ?string $password;

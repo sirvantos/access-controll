@@ -69,6 +69,10 @@
         "revoke": "Revoke",
         "deactivate": "Deactivate",
         "reactivate": "Reactivate",
+        "select": "Select",
+        "clear": "Clear selected company",
+        "selectPrompt": "Select a company to work with its data.",
+        "selected": "{name}",
         "previous": "Previous",
         "next": "Next"
     },

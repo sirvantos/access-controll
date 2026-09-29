@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { listTimeZones } from '../api/adminCompanies';
-import { ApiError } from '../api/client';
+import { ApiError, isCompanyNotSelectedError } from '../api/client';
 import {
     showCompanyProfile,
     showWorkingDaySettings,
@@ -55,26 +55,34 @@ const graceError = ref<string | null>(null);
 void load();
 
 async function load(): Promise<void> {
-    const profileRequest = showCompanyProfile();
-    const settingsRequest = showWorkingDaySettings();
-    const zonesRequest = isViewer.value ? Promise.resolve(null) : listTimeZones();
-    const [profile, zones, settings] = await Promise.all([
-        profileRequest,
-        zonesRequest,
-        settingsRequest,
-    ]);
+    try {
+        const profileRequest = showCompanyProfile();
+        const settingsRequest = showWorkingDaySettings();
+        const zonesRequest = isViewer.value ? Promise.resolve(null) : listTimeZones();
+        const [profile, zones, settings] = await Promise.all([
+            profileRequest,
+            zonesRequest,
+            settingsRequest,
+        ]);
 
-    name.value = profile.data.name;
-    timeZone.value = profile.data.time_zone;
+        name.value = profile.data.name;
+        timeZone.value = profile.data.time_zone;
 
-    if (zones !== null) {
-        timeZones.value = zones.data.identifiers;
+        if (zones !== null) {
+            timeZones.value = zones.data.identifiers;
+        }
+        bin.value = profile.data.bin ?? '';
+        contactPerson.value = profile.data.contact_person ?? '';
+        phone.value = profile.data.phone ?? '';
+        email.value = profile.data.email ?? '';
+        applySettings(settings.data);
+    } catch (error) {
+        if (isCompanyNotSelectedError(error)) {
+            return;
+        }
+
+        throw error;
     }
-    bin.value = profile.data.bin ?? '';
-    contactPerson.value = profile.data.contact_person ?? '';
-    phone.value = profile.data.phone ?? '';
-    email.value = profile.data.email ?? '';
-    applySettings(settings.data);
 }
 
 function applySettings(settings: WorkingDaySettings): void {

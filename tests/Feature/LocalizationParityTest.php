@@ -41,6 +41,15 @@ function dottedKeysFromLangFile(string $path): array
     /** @var array<string, mixed> $lines */
     $lines = require $path;
 
+    return dottedKeysFromArray($lines);
+}
+
+/**
+ * @param  array<string, mixed>  $lines
+ * @return list<string>
+ */
+function dottedKeysFromArray(array $lines): array
+{
     $keys = [];
 
     $walk = function (array $array, string $prefix) use (&$keys, &$walk): void {
@@ -89,4 +98,13 @@ it('has no extra Russian lang files without an English counterpart', function ()
     foreach (localeLangPhpFiles('ru') as $relativePath) {
         expect($enFiles)->toContain($relativePath);
     }
+});
+
+it('has exactly the same dotted keys in frontend locale files', function () {
+    /** @var array<string, mixed> $en */
+    $en = json_decode((string) file_get_contents(resource_path('js/locales/en.json')), true, 512, JSON_THROW_ON_ERROR);
+    /** @var array<string, mixed> $ru */
+    $ru = json_decode((string) file_get_contents(resource_path('js/locales/ru.json')), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(dottedKeysFromArray($en))->toBe(dottedKeysFromArray($ru));
 });

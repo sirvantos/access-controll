@@ -12,6 +12,7 @@ use App\Modules\Companies\PublicApi\WeekDay;
 use App\Modules\Companies\PublicApi\WorkingDaySettingsView;
 use App\Modules\Companies\Services\CompanyScheduleService;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,9 +23,15 @@ final class CreateCompanyAction
     public function __construct(
         private FirstAdminInvitations $firstAdminInvitations,
         private CompanyScheduleService $schedule,
+        private CompanyContext $companyContext,
     ) {}
 
     public function __invoke(CreateCompanyData $data): CreatedCompanyView
+    {
+        return $this->companyContext->withoutIsolation(fn (): CreatedCompanyView => $this->createCompany($data));
+    }
+
+    private function createCompany(CreateCompanyData $data): CreatedCompanyView
     {
         $company = DB::transaction(function () use ($data): Company {
             $company = Company::query()->create([

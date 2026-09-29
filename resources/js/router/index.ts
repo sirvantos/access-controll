@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
-import { setUnauthorizedHandler } from '../api/client';
+import { setCompanyNotSelectedHandler, setUnauthorizedHandler } from '../api/client';
 import type { Role } from '../api/types';
 import { useCurrentUser } from '../composables/useCurrentUser';
+import { useSelectedCompany } from '../composables/useSelectedCompany';
 import AcceptInvitationPage from '../pages/AcceptInvitationPage.vue';
 import CompaniesPage from '../pages/CompaniesPage.vue';
 import CompanyProfilePage from '../pages/CompanyProfilePage.vue';
@@ -49,12 +50,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
             {
                 path: '/company/users',
                 component: CompanyUsersPage,
-                meta: { roles: ['company_admin'] },
+                meta: { roles: ['company_admin', 'super_admin'] },
             },
             {
                 path: '/company',
                 component: CompanyProfilePage,
-                meta: { roles: ['company_admin', 'viewer'] },
+                meta: { roles: ['company_admin', 'viewer', 'super_admin'] },
             },
             {
                 path: '/companies',
@@ -65,6 +66,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
     });
 
     const { currentUser, load, clear } = useCurrentUser();
+    const { hasUsableSelection, markSelectionRejected } = useSelectedCompany();
     let resolved = false;
     let resolving = false;
 
@@ -96,6 +98,15 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
             return { path: '/', state: { deniedRole: true } };
         }
 
+        if (
+            user !== null &&
+            user.role === 'super_admin' &&
+            (to.path === '/company' || to.path === '/company/users') &&
+            !hasUsableSelection.value
+        ) {
+            return { path: '/companies' };
+        }
+
         return true;
     });
 
@@ -107,6 +118,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
         }
 
         void router.push({ path: '/sign-in' });
+    });
+
+    setCompanyNotSelectedHandler(() => {
+        markSelectionRejected();
+
+        if (router.currentRoute.value.path === '/companies') {
+            return;
+        }
+
+        void router.push({ path: '/companies' });
     });
 
     return router;

@@ -10,12 +10,16 @@ use App\Modules\Identity\Data\InviteUserData;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\PublicApi\FirstAdminInvitations;
 use App\Modules\Identity\PublicApi\Role;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
 
 final class FirstAdminInvitationsService implements FirstAdminInvitations
 {
-    public function __construct(private InviteCompanyUserAction $inviteCompanyUser) {}
+    public function __construct(
+        private InviteCompanyUserAction $inviteCompanyUser,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function invite(int $companyId, Stringable|string $email): void
     {
@@ -40,12 +44,14 @@ final class FirstAdminInvitationsService implements FirstAdminInvitations
             return [];
         }
 
-        $companiesWithUsers = User::query()
-            ->whereIn('company_id', $companyIds)
-            ->distinct()
-            ->pluck('company_id')
-            ->map(fn (mixed $companyId): int => (int) $companyId)
-            ->all();
+        $companiesWithUsers = $this->companyContext->withoutIsolation(
+            fn (): array => User::query()
+                ->whereIn('company_id', $companyIds)
+                ->distinct()
+                ->pluck('company_id')
+                ->map(fn (mixed $companyId): int => (int) $companyId)
+                ->all(),
+        );
 
         return array_values(array_filter(
             $companyIds,

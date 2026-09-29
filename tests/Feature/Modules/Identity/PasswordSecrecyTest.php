@@ -117,8 +117,12 @@ it('keeps the password out of responses, security events, logs, mail, and comman
         'owner@example.com',
     ]);
 
-    $invitee = User::query()->where('email', 'invitee@acme.test')->first();
-    $owner = User::query()->where('email', 'owner@example.com')->first();
+    $invitee = withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'invitee@acme.test')->first(),
+    );
+    $owner = withoutCompanyIsolation(
+        fn () => User::query()->where('email', 'owner@example.com')->first(),
+    );
 
     expect($invitee)->not->toBeNull()
         ->and($owner)->not->toBeNull();

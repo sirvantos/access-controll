@@ -37,10 +37,10 @@ it('accepts a current session for a viewer', function () {
 it('returns 401 when the stored session version is stale', function () {
     $admin = acmeAdmin();
     $storedVersion = $admin->sessionVersion();
-    $admin->forceFill(['session_version' => $storedVersion + 1])->save();
+    persistUser($admin, ['session_version' => $storedVersion + 1]);
 
     test()
-        ->actingAs($admin->fresh(), 'web')
+        ->actingAs(freshUser($admin), 'web')
         ->withSession([EnsureSessionIsCurrent::SESSION_KEY => $storedVersion])
         ->withHeaders(statefulHeaders())
         ->getJson('/_test/session')
@@ -50,9 +50,9 @@ it('returns 401 when the stored session version is stale', function () {
 
 it('returns 401 for a deactivated user', function () {
     $viewer = acmeViewer();
-    $viewer->forceFill(['deactivated_at' => '2026-01-15 12:00:00'])->save();
+    persistUser($viewer, ['deactivated_at' => '2026-01-15 12:00:00']);
 
-    signedInAs($viewer->fresh());
+    signedInAs(freshUser($viewer));
 
     $this->getJson('/_test/session')
         ->assertUnauthorized()
@@ -62,9 +62,9 @@ it('returns 401 for a deactivated user', function () {
 it('returns 401 for a user of a deactivated company', function () {
     $company = acmeCompany();
     $admin = acmeAdmin(['company_id' => $company->id]);
-    $company->forceFill(['deactivated_at' => '2026-01-15 12:00:00'])->save();
+    persistCompany($company, ['deactivated_at' => '2026-01-15 12:00:00']);
 
-    signedInAs($admin->fresh());
+    signedInAs(freshUser($admin));
 
     $this->getJson('/_test/session')
         ->assertUnauthorized()
@@ -82,10 +82,10 @@ it('returns 403 when the role is not listed', function () {
 it('keeps the same session refused after a 401', function () {
     $admin = acmeAdmin();
     $storedVersion = $admin->sessionVersion();
-    $admin->forceFill(['session_version' => $storedVersion + 1])->save();
+    persistUser($admin, ['session_version' => $storedVersion + 1]);
 
     test()
-        ->actingAs($admin->fresh(), 'web')
+        ->actingAs(freshUser($admin), 'web')
         ->withSession([EnsureSessionIsCurrent::SESSION_KEY => $storedVersion])
         ->withHeaders(statefulHeaders());
 

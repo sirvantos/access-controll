@@ -48,10 +48,21 @@ it('refuses a viewer settings change and leaves the settings unchanged', functio
         ->and($version->break_deducted)->toBeTrue();
 });
 
-it('refuses a super admin', function () {
+it('asks a super admin without a selected company to select one', function () {
     acmeCompany();
 
     signedInAs(ownerSuperAdmin())
         ->getJson('/api/v1/company/working-day-settings')
-        ->assertForbidden();
+        ->assertConflict()
+        ->assertJsonPath('error_code', 'company_not_selected');
+});
+
+it('shows a super admin the selected company working day settings', function () {
+    $company = acmeCompany(['name' => 'Acme']);
+    $owner = ownerSuperAdmin();
+
+    signedInWithSelectedCompany($owner, $company->id)
+        ->getJson('/api/v1/company/working-day-settings')
+        ->assertOk()
+        ->assertJsonPath('data.start_time', '09:00');
 });

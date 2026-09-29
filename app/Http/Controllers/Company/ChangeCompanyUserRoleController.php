@@ -9,21 +9,21 @@ use App\Http\Requests\ChangeRoleRequest;
 use App\Http\Resources\CompanyUserResource;
 use App\Modules\Identity\Actions\ChangeCompanyUserRoleAction;
 use App\Modules\Identity\PublicApi\Actor;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
 use Illuminate\Auth\AuthenticationException;
-use InvalidArgumentException;
 
 final class ChangeCompanyUserRoleController extends Controller
 {
-    public function __invoke(ChangeRoleRequest $request, int $user, ChangeCompanyUserRoleAction $action): CompanyUserResource
-    {
+    public function __invoke(
+        ChangeRoleRequest $request,
+        int $user,
+        ChangeCompanyUserRoleAction $action,
+        CompanyContext $companyContext,
+    ): CompanyUserResource {
         $actor = $request->user();
 
         throw_unless($actor instanceof Actor, AuthenticationException::class);
 
-        $companyId = $actor->actorCompanyId();
-
-        throw_unless(is_int($companyId), InvalidArgumentException::class);
-
-        return new CompanyUserResource($action($companyId, $user, $request->role()));
+        return new CompanyUserResource($action($companyContext->companyId(), $user, $request->role()));
     }
 }

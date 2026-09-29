@@ -7,6 +7,8 @@ namespace App\Modules\Identity\Models;
 use App\Modules\Identity\Notifications\ResetPasswordNotification;
 use App\Modules\Identity\PublicApi\Actor;
 use App\Modules\Identity\PublicApi\Role;
+use App\Modules\Tenancy\PublicApi\CompanyContext;
+use App\Support\BelongsToCompany;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -24,7 +26,12 @@ use SensitiveParameter;
 class User extends Authenticatable implements Actor
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use BelongsToCompany, HasFactory, Notifiable;
+
+    public function allowsNullCompanyOwner(): bool
+    {
+        return $this->role === Role::SuperAdmin;
+    }
 
     public function actorId(): int
     {
@@ -53,9 +60,11 @@ class User extends Authenticatable implements Actor
 
     public static function findByEmail(Stringable|string $email): ?self
     {
-        return self::query()->whereRaw('lower(email) = ?', [
-            $email instanceof Stringable ? $email->lower() : Str::of($email)->lower(),
-        ])->first();
+        return app(CompanyContext::class)->withoutIsolation(
+            fn (): ?self => self::query()->whereRaw('lower(email) = ?', [
+                $email instanceof Stringable ? $email->lower() : Str::of($email)->lower(),
+            ])->first(),
+        );
     }
 
     public static function emailIsRegistered(Stringable|string $email): bool
