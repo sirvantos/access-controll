@@ -1,0 +1,15 @@
+{
+    "feature_dir": "specs/003-data-isolation-between-companies",
+    "branch": "003-data-isolation-between-companies",
+    "description": "Data isolation between companies in a CRM service for access control and time tracking.\n\nThe service hosts multiple companies in one system and stores their personal data: employee face photos, entry/exit history, and working hours. One company's data must never be visible or accessible to users of another company.\n\nEvery record (users, employees, photos, terminals, events, settings, reports, exports) belongs to exactly one company. A user sees and modifies only their own company's data in every part of the service: lists, search, counters, reports, and export files. Attempting to open another company's record by direct link or ID must look like \"not found\". New records are automatically assigned to the user's company. Photos and event snapshots are not accessible without authentication or through public links.\n\nThe super admin sees all companies but works with company data only after explicitly selecting a company. The selected company is always shown in the UI, and the super admin's actions are logged.\n\nEvents from a terminal belong to the company that owns the terminal. Employee numbers are unique within a company, so identical numbers in different companies must never be mixed up.\n\nIsolation must work by default, including for all future parts of the service, rather than depending on care taken when building each page.",
+    "next": "analyze",
+    "stop": null,
+    "lock": {
+        "pid": 35324,
+        "at": "2026-09-29T05:27:34+00:00"
+    },
+    "converge_rounds": 0,
+    "tasks": [],
+    "author_chat_id": "6cb56bca-092d-4a5a-b518-5d93d61fbf7c",
+    "author_model": "cursor-grok-4.6-high"
+}
