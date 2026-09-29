@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { RouterLink, useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { Menu } from '@lucide/vue';
 import { signOut } from '../api/auth';
+import { useAppSidebar } from '../composables/useAppSidebar';
 import { useCurrentUser } from '../composables/useCurrentUser';
 import { useSelectedCompany } from '../composables/useSelectedCompany';
 import { t } from '../utils/i18n';
@@ -9,9 +12,9 @@ import { Button } from './ui/button';
 const router = useRouter();
 const { currentUser, clear } = useCurrentUser();
 const { hasUsableSelection, selectedCompany } = useSelectedCompany();
+const { open, toggle } = useAppSidebar();
 
-const navLinkClass =
-    'rounded-[var(--radius)] text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const menuLabel = computed(() => (open.value ? t('nav.closeMenu') : t('nav.openMenu')));
 
 async function submitSignOut(): Promise<void> {
     await signOut();
@@ -23,12 +26,29 @@ async function submitSignOut(): Promise<void> {
 <template>
     <header
         v-if="currentUser"
+        data-testid="app-header"
         class="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-2"
     >
-        <span data-testid="current-email" class="shrink-0 text-sm text-slate-900">{{
-            currentUser.email
-        }}</span>
-        <nav class="flex min-w-0 items-center gap-4">
+        <div class="flex min-w-0 items-center gap-3">
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="sidebar-toggle"
+                class="shrink-0"
+                :aria-expanded="open"
+                aria-controls="app-sidebar"
+                :aria-label="menuLabel"
+                @click="toggle"
+            >
+                <Menu class="size-4" aria-hidden="true" />
+                <span class="sr-only">{{ menuLabel }}</span>
+            </Button>
+            <span data-testid="current-email" class="min-w-0 truncate text-sm text-slate-900">{{
+                currentUser.email
+            }}</span>
+        </div>
+        <div class="flex min-w-0 items-center gap-4">
             <span
                 v-if="currentUser.role === 'super_admin' && hasUsableSelection && selectedCompany"
                 data-testid="selected-company-name"
@@ -40,41 +60,10 @@ async function submitSignOut(): Promise<void> {
             <span
                 v-else-if="currentUser.role === 'super_admin'"
                 data-testid="select-company-prompt"
-                class="text-sm text-muted-foreground"
+                class="hidden text-sm text-muted-foreground sm:inline"
             >
                 {{ t('companies.selectPrompt') }}
             </span>
-            <RouterLink
-                v-if="currentUser.role === 'super_admin'"
-                to="/companies"
-                data-testid="companies-link"
-                :class="navLinkClass"
-            >
-                {{ t('companies.title') }}
-            </RouterLink>
-            <RouterLink
-                v-if="
-                    currentUser.role === 'company_admin' ||
-                    (currentUser.role === 'super_admin' && hasUsableSelection)
-                "
-                to="/company/users"
-                data-testid="company-users-link"
-                :class="navLinkClass"
-            >
-                {{ t('companyUsers.title') }}
-            </RouterLink>
-            <RouterLink
-                v-if="
-                    currentUser.role === 'company_admin' ||
-                    currentUser.role === 'viewer' ||
-                    (currentUser.role === 'super_admin' && hasUsableSelection)
-                "
-                to="/company"
-                data-testid="company-profile-link"
-                :class="navLinkClass"
-            >
-                {{ t('companyProfile.nav') }}
-            </RouterLink>
             <Button
                 type="button"
                 data-testid="sign-out"
@@ -84,6 +73,6 @@ async function submitSignOut(): Promise<void> {
             >
                 {{ t('auth.signOut') }}
             </Button>
-        </nav>
+        </div>
     </header>
 </template>

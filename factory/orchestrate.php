@@ -14,10 +14,16 @@ use Access\Factory\Workflow;
 require __DIR__.'/bootstrap.php';
 
 $root = dirname(__DIR__);
-[$verbose, $arguments] = FactoryLog::extractVerbose($argv);
+[$verbose, $fast, $arguments] = FactoryLog::extractFlags($argv);
 $command = $arguments[1] ?? '';
 $log = new FactoryLog($root, $verbose);
-$log->info($command !== '' ? $command.($verbose ? ' verbose' : '') : 'usage');
+$modeNote = $fast ? ' fast' : '';
+$startup = $command !== '' ? $command.($verbose ? ' verbose' : '').$modeNote : 'usage';
+if (in_array($command, ['run', 'resume'], true)) {
+    $log->progress($startup);
+} else {
+    $log->info($startup);
+}
 $contract = Contract::load($root);
 
 $workflow = new Workflow(
@@ -33,7 +39,7 @@ try {
     match ($command) {
         'vet' => vet($workflow),
         'graph' => fwrite(STDOUT, $workflow->graphText()."\n"),
-        'run' => run($workflow, RunInput::description($root, array_slice($arguments, 2))),
+        'run' => run($workflow, RunInput::description($root, array_slice($arguments, 2)), $fast ? 'fast' : $contract->defaultMode()),
         'status' => fwrite(STDOUT, $workflow->statusText()."\n"),
         'resume' => $workflow->resume(),
         'stale' => stale($workflow),
@@ -68,14 +74,14 @@ function vet(Workflow $workflow): void
     exit(1);
 }
 
-function run(Workflow $workflow, string $description): void
+function run(Workflow $workflow, string $description, string $mode): void
 {
     if (trim($description) === '') {
         fwrite(STDERR, "Pass a feature description or -i <file>.\n");
         exit(1);
     }
 
-    $workflow->start($description);
+    $workflow->start($description, $mode);
     fwrite(STDOUT, $workflow->statusText()."\n");
 }
 
@@ -94,6 +100,6 @@ function stale(Workflow $workflow): void
 
 function usage(): never
 {
-    fwrite(STDERR, "Usage: php factory/orchestrate.php [-v] vet|graph|run [-i <file>]|status|resume|stale|unlock\n");
+    fwrite(STDERR, "Usage: php factory/orchestrate.php [-v] [--fast] vet|graph|run [-i <file>]|status|resume|stale|unlock\n");
     exit(1);
 }

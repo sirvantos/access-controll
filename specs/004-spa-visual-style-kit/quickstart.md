@@ -39,9 +39,9 @@ Each acceptance scenario in `spec.md` needs an automated test.
 | Story | Test file | Key checks |
 |-------|-----------|------------|
 | US1 company admin consistency | `CompanyUsersPage.spec.ts`, `CompanyProfilePage.spec.ts` (behaviour unchanged); new primitive specs | Invite 422 still inline; working-day 422 still inline; Active uses success treatment; deactivate/revoke use destructive; viewer read-only profile unchanged. Primitive tests: same Button/Input/Table/NativeSelect classes. |
-| US2 super admin select | `CompaniesPage.spec.ts` (select/clear store); `AppHeader.spec.ts` (name vs prompt, links); **new** App-level spec | Click Select → `[data-testid="selected-company-name"]` and company-data links appear without remounting the document. Clear / rejected selection restores prompt. Optional selected row does not remove header feedback. |
-| US3 guests | `SignInPage.spec.ts`, `ForgotPasswordPage.spec.ts`, `ResetPasswordPage.spec.ts`, `AcceptInvitationPage.spec.ts` | Failure/confirmation still on existing testids; header not rendered on guest routes (`App.vue` + router `meta.guest`). Primitive/theme scan covers typeface and accent on these pages. |
-| US4 focus | new primitive spec | Primary, destructive, outline buttons, Input, NativeSelect, checkbox, header link classes include `focus-visible` + ring token. Forbidden scan: no bare `outline-none` without ring. |
+| US2 super admin select | `CompaniesPage.spec.ts` (select/clear store); `AppHeader.spec.ts` (name vs prompt, sidebar links, toggle); **new** App-level spec | Click Select → `[data-testid="selected-company-name"]` and company-data links (sidebar) appear without remounting the document. Clear / rejected selection restores prompt. Optional selected row does not remove top-bar feedback. |
+| US3 guests | `SignInPage.spec.ts`, `ForgotPasswordPage.spec.ts`, `ResetPasswordPage.spec.ts`, `AcceptInvitationPage.spec.ts` | Failure/confirmation still on existing testids; top bar and sidebar not rendered on guest routes (`App.vue` + router `meta.guest`). Primitive/theme scan covers typeface and accent on these pages. |
+| US4 focus | new primitive spec | Primary, destructive, outline buttons, Input, NativeSelect, checkbox, sidebar link and top-bar control classes include `focus-visible` + ring token. Forbidden scan: no bare `outline-none` without ring. |
 | SC-004 / FR-021 | (none new) | No PHP/OpenAPI diff. |
 | SC-007 | new scan spec | In-scope Vue/CSS: no `rounded-full` on controls, no purple gradient utilities, no Instrument Sans / Inter / Roboto / Arial as `--font-sans` primary, no `bg-zinc-900` primary buttons. |
 | SC-008 | `make verify` | Full repository gate. |
@@ -51,9 +51,9 @@ Each acceptance scenario in `spec.md` needs an automated test.
 1. Sign in as a company admin. Open `/company/users` and `/company`. Confirm shared typeface, accent primary buttons, bordered fields, tables, and danger inline errors (submit invalid invite / invalid settings).
 2. Confirm Active labels are emerald; deactivate/revoke are visually danger.
 3. Sign in as a viewer. `/company` is themed and read-only (no save controls).
-4. Sign in as a super admin with no selection. `/companies` is themed; header shows the select prompt; no company-data links. Press Select: header shows the company name and links **without** a full reload. Optional: selected table row is lightly marked. Clear selection: prompt returns, links go away.
-5. Signed out: `/sign-in`, forgot/reset password, invitation accept use the same typeface and accent; no signed-in header.
-6. Tab through header, fields, and actions: focus ring is visible in the accent colour, including destructive actions.
-7. Switch UI language ru/en: labels still come from locales; header and tables remain usable.
+4. Sign in as a super admin with no selection. `/companies` is themed; top bar shows the select prompt; no company-data links in the sidebar. Press Select: top bar shows the company name and sidebar links appear **without** a full reload. Optional: selected table row is lightly marked. Clear selection: prompt returns, links go away. On a phone-width viewport, open/close the sidebar with the menu button.
+5. Signed out: `/sign-in`, forgot/reset password, invitation accept use the same typeface and accent; no signed-in top bar or sidebar.
+6. Tab through sidebar, top bar, fields, and actions: focus ring is visible in the accent colour, including destructive actions.
+7. Switch UI language ru/en: labels still come from locales; top bar, sidebar, and tables remain usable.
 8. Narrow the window to a width already used today: controls stay reachable.
 9. In DevTools, disable the IBM Plex Sans network/font: text still readable via `sans-serif`.

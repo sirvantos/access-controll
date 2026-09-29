@@ -20,7 +20,7 @@ The screens in scope are the ones that exist today:
 - Company users and invitations (company admin, super admin with a selected company)
 - Company profile, including working day settings (company admin, viewer, super admin with a selected company)
 - Home landing text shown when no role-specific redirect applies
-- The app shell: page background, content area, and header with navigation and sign-out
+- The app shell: page background, content area, collapsible left navigation sidebar, and top bar with menu toggle, selected-company feedback, and sign-out
 
 ### User Story 1 - Company admin works in a consistent, calm interface (Priority: P1)
 
@@ -41,21 +41,21 @@ A company admin signs in and moves between company users, invitations, and the c
 
 ---
 
-### User Story 2 - Super admin selects a company and sees it in the header immediately (Priority: P1)
+### User Story 2 - Super admin selects a company and sees it in the shell immediately (Priority: P1)
 
-A super admin opens the companies page, which uses the new theme. They select a company. Without a full page reload, the header shows the selected company's name and the company-data links (company users, company profile) appear. The companies table may also lightly mark the selected row.
+A super admin opens the companies page, which uses the new theme. They select a company. Without a full page reload, the top bar shows the selected company's name and the company-data links (company users, company profile) appear in the left sidebar. The companies table may also lightly mark the selected row.
 
-**Why this priority**: Working with the wrong company's data is the main risk for a super admin. Clear, immediate header feedback after selection is a mandatory part of the feature.
+**Why this priority**: Working with the wrong company's data is the main risk for a super admin. Clear, immediate shell feedback after selection is a mandatory part of the feature.
 
-**Independent Test**: Sign in as a super admin with no selection, open the companies page, confirm the header shows the "select a company" prompt and no company-data links. Press Select on one company. Confirm, without reloading, that the header shows that company's name and the company-data links. Clear the selection and confirm the header returns to the prompt and the links disappear.
+**Independent Test**: Sign in as a super admin with no selection, open the companies page, confirm the top bar shows the "select a company" prompt and no company-data links are in the sidebar. Press Select on one company. Confirm, without reloading, that the top bar shows that company's name and the company-data links appear in the sidebar. Clear the selection and confirm the prompt returns and the links disappear.
 
 **Acceptance Scenarios**:
 
-1. **Given** a signed-in super admin with no selected company, **When** they open the companies page, **Then** the page and header use the new theme, the header shows the "select a company" prompt, and no company-data links are shown.
-2. **Given** a super admin on the companies page, **When** they press Select on a company, **Then** the header shows that company's name and the company users and company profile links appear, without a full page reload.
-3. **Given** a super admin with a selected company, **When** they look at the header on any signed-in page, **Then** the selected company name is clearly visible and readable against the header background.
-4. **Given** a super admin with a selected company, **When** they clear the selection or the selection is rejected, **Then** the header stops showing the company name and the company-data links disappear, exactly as before.
-5. **Given** a super admin with a selected company, **When** they view the companies table, **Then** the selected row MAY be marked lightly; if marked, the marking does not replace or weaken the header feedback.
+1. **Given** a signed-in super admin with no selected company, **When** they open the companies page, **Then** the page and shell use the new theme, the top bar shows the "select a company" prompt, and no company-data links are shown in the sidebar.
+2. **Given** a super admin on the companies page, **When** they press Select on a company, **Then** the top bar shows that company's name and the company users and company profile links appear in the sidebar, without a full page reload.
+3. **Given** a super admin with a selected company, **When** they look at the top bar on any signed-in page, **Then** the selected company name is clearly visible and readable against the bar background.
+4. **Given** a super admin with a selected company, **When** they clear the selection or the selection is rejected, **Then** the top bar stops showing the company name and the company-data links disappear from the sidebar, exactly as before.
+5. **Given** a super admin with a selected company, **When** they view the companies table, **Then** the selected row MAY be marked lightly; if marked, the marking does not replace or weaken the top-bar / sidebar feedback.
 
 ---
 
@@ -73,13 +73,13 @@ A guest opens the sign-in, forgot password, reset password, or invitation accept
 2. **Given** a signed-out visitor on the sign-in page, **When** they submit wrong credentials, **Then** the error is shown in the danger colour and they stay signed out, exactly as before.
 3. **Given** a visitor with a valid invitation link, **When** they open the invitation acceptance page, **Then** it uses the same typeface, accent colour, fields, and buttons as the sign-in page.
 4. **Given** a visitor on the forgot password or reset password page, **When** they submit the form, **Then** the result and any error are shown with the same themed treatment, and the flow behaves as before.
-5. **Given** any guest page, **When** it is shown, **Then** the signed-in header is not shown, exactly as before.
+5. **Given** any guest page, **When** it is shown, **Then** the signed-in top bar and sidebar are not shown, exactly as before.
 
 ---
 
 ### User Story 4 - Keyboard users can always see where focus is (Priority: P2)
 
-An operator who navigates with the keyboard tabs through header links, buttons, text fields, dropdowns, and table actions. The focused control always shows a clearly visible focus indicator in the accent colour.
+An operator who navigates with the keyboard tabs through sidebar links, top-bar controls, buttons, text fields, dropdowns, and table actions. The focused control always shows a clearly visible focus indicator in the accent colour.
 
 **Why this priority**: Operators handle sensitive data and must know which control an action will hit. Visible focus is also a basic accessibility expectation.
 
@@ -119,21 +119,22 @@ An operator who navigates with the keyboard tabs through header links, buttons, 
 - **FR-007**: All UI text MUST render in the theme typeface named in `constraints.md`, with a sans-serif fallback. The excluded typefaces listed in `constraints.md` MUST NOT be the primary UI typeface.
 - **FR-008**: The theme MUST NOT use any of the excluded visual treatments listed in `constraints.md` (purple-on-white gradients, warm cream paper with serif display type, terracotta accents, dark mode by default, glow effects, oversized soft shadows).
 
-**App shell and header**
+**App shell, top bar, and sidebar**
 
-- **FR-009**: The app shell MUST use the app-chrome background and white content panels from the theme, with consistent spacing and type across all signed-in screens.
-- **FR-010**: The header MUST keep every element it shows today, with the same visibility rules: current user email, the super admin's selected company name or "select a company" prompt, companies link (super admin only), company users link, company profile link, and sign-out.
-- **FR-011**: For a super admin with a usable selection, the header MUST show the selected company name clearly and readably on every signed-in page.
-- **FR-012**: After a super admin selects a company, the header MUST show the selected company name and the company-data links without a full page reload.
+- **FR-009**: The app shell MUST use the app-chrome background and white content panels from the theme, with consistent spacing and type across all signed-in screens. Signed-in chrome MUST include a left navigation sidebar and a compact top bar.
+- **FR-010**: The top bar MUST show: a control that opens/closes the sidebar, the current user email, the super admin's selected company name or "select a company" prompt, and sign-out. Primary navigation links (companies, company users, company profile) MUST live in the left sidebar with the same role and selection visibility rules as before. The sidebar MUST open and close when the operator activates the top-bar menu control.
+- **FR-011**: For a super admin with a usable selection, the top bar MUST show the selected company name clearly and readably on every signed-in page.
+- **FR-012**: After a super admin selects a company, the top bar MUST show the selected company name and the company-data links MUST appear in the sidebar without a full page reload.
 - **FR-013**: Company-data navigation (company users, company profile) MUST appear for a super admin only when a usable selection exists, exactly as today.
-- **FR-014**: The companies table MAY lightly mark the currently selected company's row. If it does, the marking MUST be subtle and MUST NOT replace the header feedback.
+- **FR-014**: The companies table MAY lightly mark the currently selected company's row. If it does, the marking MUST be subtle and MUST NOT replace the top-bar / sidebar feedback.
+- **FR-024**: The shell MUST be usable on narrow (mobile) and wide (desktop) viewports. On viewports below the `md` breakpoint the sidebar MUST behave as an overlay drawer that is closed by default and closes after navigation, backdrop click, or Escape. On `md` and wider the sidebar MUST sit in the layout flow and MAY start open; the same menu control toggles it.
 
 **Screens**
 
 - **FR-015**: The following screens MUST be restyled with the shared theme and primitives: sign in, forgot password, reset password, invitation acceptance, companies list and create-company form (including first admin invitation actions, deactivate, select, and clear selection), company users and invitations, company profile including working day settings, and the home landing text.
-- **FR-016**: Guest screens MUST use the same typeface, accent colour, fields, buttons, and inline error styling as signed-in screens, and MUST continue to hide the signed-in header.
+- **FR-016**: Guest screens MUST use the same typeface, accent colour, fields, buttons, and inline error styling as signed-in screens, and MUST continue to hide the signed-in top bar and sidebar.
 - **FR-017**: Every interactive control on every screen in scope MUST show a visible focus indicator in the accent colour when focused by keyboard. No control may remove the focus indicator without a visible replacement.
-- **FR-018**: Screens MUST remain usable at every browser width at which they are usable today; the layout MAY remain desktop-first.
+- **FR-018**: Screens MUST remain usable at every browser width at which they are usable today, including mobile widths with the overlay sidebar from FR-024.
 
 **Copy and localization**
 
@@ -149,15 +150,16 @@ An operator who navigates with the keyboard tabs through header links, buttons, 
 ### Key Entities
 
 - **Theme**: The shared set of visual values (surface, text, accent, danger, success colours; radius; elevation; typeface) that every screen draws from. Values are listed in `constraints.md`.
-- **Themed primitive**: A reusable control (button, text input, select, checkbox, table, inline error, alert, state label, header navigation item) whose appearance comes from the theme and is identical wherever it is used.
-- **Selected company indicator**: The header element that shows a super admin which company they are working with, or prompts them to select one.
+- **Themed primitive**: A reusable control (button, text input, select, checkbox, table, inline error, alert, state label, sidebar navigation item) whose appearance comes from the theme and is identical wherever it is used.
+- **Selected company indicator**: The top-bar element that shows a super admin which company they are working with, or prompts them to select one.
+- **App sidebar**: The left navigation panel that holds primary signed-in links and toggles open/closed from the top bar (overlay on mobile, in-flow on desktop).
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: 100% of the screens listed in FR-015 use the shared theme and shared primitives; a reviewer comparing any two screens finds no control of the same kind with a different appearance.
-- **SC-002**: After a super admin presses Select, the selected company name and company-data links appear in the header within 1 second and without a full page reload, in 100% of attempts.
+- **SC-002**: After a super admin presses Select, the selected company name appears in the top bar and the company-data links appear in the sidebar within 1 second and without a full page reload, in 100% of attempts.
 - **SC-003**: 100% of interactive controls on the screens in scope show a visible accent-coloured focus indicator when reached by keyboard.
 - **SC-004**: 0 changes to backend behaviour: every existing backend test passes without modification, and no API contract document changes.
 - **SC-005**: Every existing frontend behaviour check (routes, role-based visibility, selection flow, form submission, validation display) still passes after the restyle.
@@ -173,4 +175,4 @@ An operator who navigates with the keyboard tabs through header links, buttons, 
 - Existing loading, empty, and error messages keep their current wording and conditions; only their styling changes.
 - Light theme only; no dark mode and no theme switcher.
 - No custom logo asset; the product identity comes from typography and colour only.
-- Layouts may stay desktop-first; "narrow widths already in use" means any width at which a screen is usable today.
+- Layouts support mobile overlay sidebar and desktop in-flow sidebar (FR-024); content panels remain usable at every width at which they are usable today.

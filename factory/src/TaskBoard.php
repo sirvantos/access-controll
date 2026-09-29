@@ -160,10 +160,7 @@ final class TaskBoard
         $dependsOn = [];
         if (preg_match('/\s*\(depends on (?<deps>[^)]+)\)\s*$/', $rest, $deps) === 1) {
             $rest = trim(substr($rest, 0, -strlen($deps[0])));
-            $dependsOn = array_values(array_filter(array_map(
-                static fn (string $dependency): string => trim($dependency),
-                explode(',', $deps['deps']),
-            ), static fn (string $dependency): bool => $dependency !== ''));
+            $dependsOn = self::parseDependencies($deps['deps']);
         }
 
         return new TaskItem(
@@ -176,6 +173,50 @@ final class TaskBoard
             $phase,
             trim($line),
         );
+    }
+
+    /**
+     * Expand comma-separated dependency tokens, including inclusive ranges
+     * like `T007-T014` or `T007–T014` (hyphen / en-dash / em-dash).
+     *
+     * @return list<string>
+     */
+    private static function parseDependencies(string $deps): array
+    {
+        $tokens = array_values(array_filter(array_map(
+            static fn (string $dependency): string => trim($dependency),
+            explode(',', $deps),
+        ), static fn (string $dependency): bool => $dependency !== ''));
+
+        $expanded = [];
+        foreach ($tokens as $token) {
+            foreach (self::expandDependencyToken($token) as $id) {
+                $expanded[$id] = true;
+            }
+        }
+
+        return array_keys($expanded);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function expandDependencyToken(string $token): array
+    {
+        if (preg_match('/^T(?<start>\d+)\s*[\-–—]\s*T(?<end>\d+)$/u', $token, $range) === 1) {
+            $start = (int) $range['start'];
+            $end = (int) $range['end'];
+            throw_if($end < $start, RuntimeException::class, 'Invalid dependency range '.$token.'.');
+
+            $ids = [];
+            for ($number = $start; $number <= $end; $number++) {
+                $ids[] = 'T'.str_pad((string) $number, max(strlen($range['start']), strlen($range['end'])), '0', STR_PAD_LEFT);
+            }
+
+            return $ids;
+        }
+
+        return [$token];
     }
 
     /**

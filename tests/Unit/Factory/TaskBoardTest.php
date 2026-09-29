@@ -28,6 +28,38 @@ it('parses a speckit task line', function () {
         ->and($tasks[1]->description)->toBe('Implement the service');
 });
 
+it('expands inclusive dependency ranges with hyphen or en-dash', function () {
+    $tasks = TaskBoard::parse(<<<'MD'
+    ## Phase 1: Setup
+
+    - [ ] T007 First
+    - [ ] T008 Second
+    - [ ] T009 Third
+    - [ ] T010 Fourth
+    - [ ] T011 Fifth
+    - [ ] T012 Sixth
+    - [ ] T013 Seventh
+    - [ ] T014 Last
+    - [ ] T017 Test
+    - [ ] T019 [P] [US1] Restyle page (depends on T007–T014, T017)
+    - [ ] T020 [US1] Other page (depends on T007-T009, T017)
+    MD);
+
+    $byId = [];
+    foreach ($tasks as $task) {
+        $byId[$task->id] = $task;
+    }
+
+    expect($byId['T019']->dependsOn)->toBe(['T007', 'T008', 'T009', 'T010', 'T011', 'T012', 'T013', 'T014', 'T017'])
+        ->and($byId['T020']->dependsOn)->toBe(['T007', 'T008', 'T009', 'T017']);
+
+    $ordered = TaskBoard::order($tasks);
+
+    expect(array_map(static fn ($task): string => $task->id, $ordered))->toBe([
+        'T007', 'T008', 'T009', 'T010', 'T011', 'T012', 'T013', 'T014', 'T017', 'T019', 'T020',
+    ]);
+});
+
 it('orders tasks within a phase and rejects a cycle', function () {
     $markdown = <<<'MD'
     ## Phase 1: Setup

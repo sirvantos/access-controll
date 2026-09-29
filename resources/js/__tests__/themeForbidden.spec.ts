@@ -10,6 +10,7 @@ const css = readFileSync(join(here, '../../css/app.css'), 'utf8');
 const inScopeSfcs = [
     'App.vue',
     'components/AppHeader.vue',
+    'components/AppSidebar.vue',
     'pages/SignInPage.vue',
     'pages/ForgotPasswordPage.vue',
     'pages/ResetPasswordPage.vue',

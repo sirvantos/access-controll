@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Access\Factory\AgentClient;
 use Access\Factory\AgentReply;
 use Access\Factory\Contract;
+use Access\Factory\FactoryLog;
 use Access\Factory\FactoryState;
 use Access\Factory\FactoryStop;
 use Access\Factory\FeatureScaffolder;
@@ -75,6 +76,125 @@ it('runs specify through converge with a scripted agent', function () {
         file_put_contents($root.'/specs/001-demo/tasks.md', str_replace('- [x] T001', '- [ ] T001', $tasks));
 
         expect($workflow->staleIds())->toBe([]);
+    } finally {
+        factoryRemove($root);
+    }
+});
+
+it('prints stage milestones without verbose', function () {
+    $root = factoryRoot();
+    $shown = '';
+
+    try {
+        $log = new FactoryLog($root, false, function (string $text) use (&$shown): void {
+            $shown .= $text;
+        });
+
+        $agent = factoryAgent(function (string $cwd, string $prompt): string {
+            $dir = 'specs/001-demo';
+            if (str_contains($prompt, 'IMPLEMENT_TASK')) {
+                file_put_contents($cwd.'/recorded.txt', "pass\n");
+
+                return '{"status":"done","summary":"recorded","assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'QUALITY_REVIEW') || str_contains($prompt, 'FUNCTIONAL_REVIEW')) {
+                return '{"verdict":"approve","issues":[],"scenarios":[{"id":"1","result":"pass"}]}';
+            }
+
+            if (str_contains($prompt, 'speckit-analyze')) {
+                return '{"verdict":"approve","issues":[],"assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'speckit-specify')) {
+                file_put_contents($cwd.'/'.$dir.'/spec.md', "User Story 1\n\nA pass is recorded.\n");
+            }
+
+            if (str_contains($prompt, 'speckit-plan')) {
+                file_put_contents($cwd.'/'.$dir.'/plan.md', "plan\n");
+            }
+
+            if (str_contains($prompt, 'speckit-tasks')) {
+                file_put_contents($cwd.'/'.$dir.'/tasks.md', "## Phase 1: Setup\n\n- [ ] T001 Record a pass\n");
+            }
+
+            return '{"status":"done","summary":"ok","assumptions":[]}';
+        });
+
+        factoryWorkflow($root, $agent, null, 0, 'true', 'strict', 'full', $log)->start('Record a gate pass');
+
+        expect($shown)->toContain('→ specify')
+            ->and($shown)->toContain('specify done')
+            ->and($shown)->toContain('→ clarify')
+            ->and($shown)->toContain('clarify done')
+            ->and($shown)->toContain('→ plan')
+            ->and($shown)->toContain('plan done')
+            ->and($shown)->toContain('→ tasks')
+            ->and($shown)->toContain('tasks done (1 tasks)')
+            ->and($shown)->toContain('→ analyze')
+            ->and($shown)->toContain('analyze approve (0 open)')
+            ->and($shown)->toContain('→ implement')
+            ->and($shown)->toContain('wave T001 drafted (1/1)')
+            ->and($shown)->toContain('implement 1/1')
+            ->and($shown)->toContain('→ converge')
+            ->and($shown)->toContain('converge no new tasks → done')
+            ->and($shown)->not->toContain('worktree ');
+    } finally {
+        factoryRemove($root);
+    }
+});
+
+it('keeps analyze in fast mode but skips verify and code reviews', function () {
+    $root = factoryRoot();
+    $prompts = [];
+    $verify = 'sh -c '.escapeshellarg('echo VERIFY_RAN; exit 1');
+
+    try {
+        $agent = factoryAgent(function (string $cwd, string $prompt) use (&$prompts): string {
+            $prompts[] = $prompt;
+            $dir = 'specs/001-demo';
+
+            if (str_contains($prompt, 'IMPLEMENT_TASK')) {
+                file_put_contents($cwd.'/recorded.txt', "pass\n");
+
+                return '{"status":"done","summary":"recorded","assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'QUALITY_REVIEW') || str_contains($prompt, 'FUNCTIONAL_REVIEW')) {
+                return '{"verdict":"changes_requested","issues":[{"severity":"critical","rule":"constitution:Definition of Done","location":"x","description":"should not run"}],"scenarios":[]}';
+            }
+
+            if (str_contains($prompt, 'speckit-analyze')) {
+                return '{"verdict":"approve","issues":[],"assumptions":[]}';
+            }
+
+            if (str_contains($prompt, 'speckit-specify')) {
+                file_put_contents($cwd.'/'.$dir.'/spec.md', "User Story 1\n\nA pass is recorded.\n");
+            }
+
+            if (str_contains($prompt, 'speckit-plan')) {
+                file_put_contents($cwd.'/'.$dir.'/plan.md', "plan\n");
+            }
+
+            if (str_contains($prompt, 'speckit-tasks')) {
+                file_put_contents($cwd.'/'.$dir.'/tasks.md', "## Phase 1: Setup\n\n- [ ] T001 Record a pass\n");
+            }
+
+            return '{"status":"done","summary":"ok","assumptions":[]}';
+        });
+
+        $workflow = factoryWorkflow($root, $agent, null, 0, $verify, 'strict', 'full');
+        $workflow->start('Record a gate pass', 'fast');
+
+        $state = json_decode((string) file_get_contents($root.'/specs/001-demo/.factory/state.json'), true);
+
+        expect($workflow->statusText())->toBe('specs/001-demo done')
+            ->and($state['mode'] ?? null)->toBe('fast')
+            ->and(file_get_contents($root.'/recorded.txt'))->toBe("pass\n")
+            ->and(file_get_contents($root.'/specs/001-demo/tasks.md'))->toContain('- [x] T001')
+            ->and(collect($prompts)->contains(fn (string $prompt): bool => str_contains($prompt, 'speckit-analyze')))->toBeTrue()
+            ->and(collect($prompts)->contains(fn (string $prompt): bool => str_contains($prompt, 'QUALITY_REVIEW')))->toBeFalse()
+            ->and(collect($prompts)->contains(fn (string $prompt): bool => str_contains($prompt, 'FUNCTIONAL_REVIEW')))->toBeFalse();
     } finally {
         factoryRemove($root);
     }
@@ -1421,7 +1541,7 @@ it('implements five tasks in one wave and leaves the sixth for the next', functi
     }
 });
 
-function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $scaffolder = null, int $retries = 0, string $verify = 'true', string $reviewMode = 'strict'): Workflow
+function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $scaffolder = null, int $retries = 0, string $verify = 'true', string $reviewMode = 'strict', string $mode = 'full', ?FactoryLog $log = null): Workflow
 {
     return new Workflow(
         $root,
@@ -1430,6 +1550,7 @@ function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $s
             'max_retries' => $retries,
             'max_converge_rounds' => 2,
             'agent_timeout_seconds' => 30,
+            'mode' => $mode,
             'implement_loop' => [
                 'review_mode' => $reviewMode,
             ],
@@ -1459,6 +1580,7 @@ function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $s
                 return ['branch' => '001-demo', 'dir' => $dir];
             }
         },
+        $log,
     );
 }
 

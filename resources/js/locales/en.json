@@ -20,6 +20,11 @@
     "home": {
         "placeholder": "You are signed in."
     },
+    "nav": {
+        "menu": "Menu",
+        "openMenu": "Open menu",
+        "closeMenu": "Close menu"
+    },
     "companyUsers": {
         "title": "Users",
         "email": "Email",

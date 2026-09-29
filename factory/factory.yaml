@@ -1,6 +1,11 @@
 # Factory contract. The orchestrator parses this file.
 # reviewer is a different model family from implementer.
 
+# Run mode: full (default) or fast.
+# full — specify→clarify→plan→tasks→analyze→implement(+verify+quality+functional)→converge
+# fast — same DevSpec path including analyze, but implement skips make verify and code reviewers
+mode: full
+
 verify_command: make verify
 # Attempts are max_retries + 1. Analyze repairs and implement retries share this.
 max_retries: 4

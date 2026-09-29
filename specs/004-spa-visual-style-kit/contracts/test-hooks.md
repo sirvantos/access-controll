@@ -4,11 +4,11 @@
 
 Existing Vitest files stay the source of behaviour. Markup/classes may change; these selectors and element types must keep working.
 
-## Header (`AppHeader.spec.ts`)
+## Header / shell (`AppHeader.spec.ts`, `App.spec.ts`, `selectCompanyHeader.spec.ts`)
 
-`current-email`, `sign-out`, `companies-link`, `select-company-prompt`, `selected-company-name`, `company-users-link`, `company-profile-link`.
+`current-email`, `sign-out`, `sidebar-toggle`, `app-sidebar`, `app-sidebar-nav`, `sidebar-backdrop` (mobile when open), `companies-link`, `select-company-prompt`, `selected-company-name`, `company-users-link`, `company-profile-link`.
 
-`companies-link` / `company-users-link` / `company-profile-link` remain anchors with `href` as today.
+`companies-link` / `company-users-link` / `company-profile-link` remain anchors with `href` as today; they live in the sidebar. Selected company name / prompt stay in the top bar.
 
 ## Auth / invitation pages
 

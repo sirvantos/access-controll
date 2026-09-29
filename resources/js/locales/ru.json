@@ -20,6 +20,11 @@
     "home": {
         "placeholder": "Вы вошли в сервис."
     },
+    "nav": {
+        "menu": "Меню",
+        "openMenu": "Открыть меню",
+        "closeMenu": "Закрыть меню"
+    },
     "companyUsers": {
         "title": "Пользователи",
         "email": "Эл. почта",

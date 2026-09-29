@@ -25,10 +25,14 @@ final class Workflow
         private ?FactoryLog $log = null,
     ) {}
 
-    public function start(string $description): void
+    public function start(string $description, string $mode = 'full'): void
     {
         if ($this->activeFactoryRunBlocksStart()) {
             throw new FactoryStop('already_started', 'This feature already has factory state. Use resume.');
+        }
+
+        if (! in_array($mode, ['full', 'fast'], true)) {
+            $mode = $this->contract->defaultMode();
         }
 
         $existing = $this->featureDir();
@@ -46,6 +50,8 @@ final class Workflow
         }
 
         $this->git->ensureBranch($created['branch']);
+        $this->progress('mode '.$mode.' · '.$created['dir']);
+        $this->note('mode '.$mode);
 
         $this->save(new FactoryState(
             $created['dir'],
@@ -56,6 +62,9 @@ final class Workflow
             null,
             0,
             [],
+            null,
+            null,
+            $mode,
         ));
 
         $this->continueRun();
@@ -64,6 +73,7 @@ final class Workflow
     public function resume(): void
     {
         $state = $this->load();
+        $this->progress('resume '.$state->featureDir.' at '.$state->next);
         $this->note('resume '.$state->featureDir.' at '.$state->next);
         if ($state->next === 'done') {
             return;
@@ -168,6 +178,7 @@ final class Workflow
                 }
 
                 $this->git->ensureBranch($state->branch);
+                $this->progress('→ '.$state->next);
                 $this->note('step '.$state->next);
                 $this->dispatch($state->next);
             }
@@ -238,6 +249,7 @@ final class Workflow
         $this->keepDraft($worktree, 'factory/'.$step, $step.' '.$state->featureDir);
         $this->mirrorFeature($worktree, $state->featureDir);
         $this->git->removeWorktree($worktree, 'factory/'.$step);
+        $this->authorDoneProgress($step, $reply, $state->featureDir);
         $this->advance($step);
     }
 
@@ -254,6 +266,8 @@ final class Workflow
             $this->noteDiscardedAnalyzeRules($reply);
 
             if ($this->analyzeClear($reply)) {
+                $suffix = $repairs > 0 ? ', '.$repairs.' repairs' : '';
+                $this->progress('analyze approve (0 open'.$suffix.')');
                 $this->publishDraft('spec '.$state->featureDir, $state->featureDir);
                 $this->advance('analyze');
 
@@ -262,10 +276,12 @@ final class Workflow
 
             $issues = $reply->actionableIssues();
             if ($issues === [] || $repairs >= $max) {
+                $this->progress('analyze failed ('.$this->issueCountSummary($issues).')');
                 $this->stop('analyze_failure', $this->analyzeFailureDetail($reply));
             }
 
             $repairs++;
+            $this->progress('analyze '.$reply->status.': '.$this->issueCountSummary($issues).' → repair '.$repairs.'/'.$max);
             $this->note('repair analyze findings with spec_editor');
             $this->repairAnalyze($state, $issues, $repairs);
         }
@@ -399,6 +415,8 @@ final class Workflow
             $this->implementWave($wave);
         }
 
+        [$done, $total] = $this->boardCounts();
+        $this->progress('implement '.$done.'/'.$total);
         $this->advance('implement');
     }
 
@@ -416,6 +434,8 @@ final class Workflow
             $attempts++;
             $this->saveWave($wave, $attempts, 'running', $chatId);
 
+            [$done, $total] = $this->boardCounts();
+            $this->progress('implement '.$done.'/'.$total.' · wave '.$label.' attempt '.$attempts.'/'.$this->contract->maxAttempts());
             $this->note('task '.$label.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
             $worktree = $this->prepareWorktree($label, 'implementer');
             $this->overlayFeature($worktree, $this->load()->featureDir);
@@ -469,30 +489,41 @@ final class Workflow
             $this->git->commit($worktree, $label.' attempt '.$attempts);
             $committed = true;
             $this->markAttemptTree($label, true);
-            $verified = $this->verify($worktree, $label, $attempts);
-            if (! $verified) {
-                $this->rememberFeedback($label, [
-                    'kind' => 'verify',
-                    'log' => $this->verifyLog($label, $attempts),
-                ]);
-            } elseif ($reply->blocksApproval()) {
-                if ($this->contract->assumptionsBlockApproval()) {
-                    $this->rememberFeedback($label, [
-                        'kind' => 'assumptions',
-                        'assumptions' => $reply->payload['assumptions'] ?? [],
-                    ]);
-                } else {
-                    $this->note('task '.$label.' assumptions surfaced under '.$this->contract->reviewMode());
+
+            if ($this->isFast()) {
+                $this->progress('skip verify+reviews (fast)');
+                $this->note('skip verify and code reviews (fast mode)');
+                if ($reply->blocksApproval()) {
+                    $this->note('task '.$label.' assumptions surfaced under fast mode');
                 }
-            }
+            } else {
+                $verified = $this->verify($worktree, $label, $attempts);
+                if (! $verified) {
+                    $this->progress('verify failed');
+                    $this->rememberFeedback($label, [
+                        'kind' => 'verify',
+                        'log' => $this->verifyLog($label, $attempts),
+                    ]);
+                } elseif ($reply->blocksApproval()) {
+                    if ($this->contract->assumptionsBlockApproval()) {
+                        $this->progress('assumptions blocked approval');
+                        $this->rememberFeedback($label, [
+                            'kind' => 'assumptions',
+                            'assumptions' => $reply->payload['assumptions'] ?? [],
+                        ]);
+                    } else {
+                        $this->note('task '.$label.' assumptions surfaced under '.$this->contract->reviewMode());
+                    }
+                }
 
-            $assumptionsBlock = $reply->blocksApproval() && $this->contract->assumptionsBlockApproval();
-            if (! $verified || $assumptionsBlock || ! $this->reviewsPass($worktree, $wave, $attempts)) {
-                $this->note('task '.$label.' attempt '.$attempts.' rejected');
-                $this->rememberWave($wave, $attempts, $chatId);
-                $this->git->removeWorktree($worktree, '');
+                $assumptionsBlock = $reply->blocksApproval() && $this->contract->assumptionsBlockApproval();
+                if (! $verified || $assumptionsBlock || ! $this->reviewsPass($worktree, $wave, $attempts)) {
+                    $this->note('task '.$label.' attempt '.$attempts.' rejected');
+                    $this->rememberWave($wave, $attempts, $chatId);
+                    $this->git->removeWorktree($worktree, '');
 
-                continue;
+                    continue;
+                }
             }
 
             $this->clearFeedback($label);
@@ -509,6 +540,8 @@ final class Workflow
             $this->mirrorFeature($worktree, $featureDir);
             $this->git->removeWorktree($worktree, 'factory/'.$label);
             $this->saveWave($wave, $attempts, 'done', $chatId, true);
+            [$doneAfter, $totalAfter] = $this->boardCounts();
+            $this->progress('wave '.$label.' drafted ('.$doneAfter.'/'.$totalAfter.')');
             $this->note('drafted '.$label);
 
             return;
@@ -541,6 +574,7 @@ final class Workflow
 
             if ($this->git->changedFiles($worktree) !== $before) {
                 $this->note('review '.$prompt.' edited files');
+                $this->progressReviewRejection($prompt, $reply, true);
                 $rejections[] = $this->reviewFeedback($prompt, $reply, true);
                 $this->git->discard($worktree);
 
@@ -549,6 +583,7 @@ final class Workflow
 
             $this->note('review '.$prompt.' '.$reply->status);
             if (! $reply->reviewAccepted($mode)) {
+                $this->progressReviewRejection($prompt, $reply, false);
                 $rejections[] = $this->reviewFeedback($prompt, $reply, false);
             }
         }
@@ -599,6 +634,7 @@ final class Workflow
 
         $added = array_values(array_diff($after, $before));
         if ($added !== []) {
+            $this->progress('converge +'.count($added).' tasks ('.implode(', ', $added).')');
             $this->note('converge added '.implode(', ', $added));
             $state->next = 'implement';
             $this->save($state);
@@ -606,6 +642,7 @@ final class Workflow
             return;
         }
 
+        $this->progress('converge no new tasks → done');
         $this->publishDraft('implement '.$state->featureDir, $state->featureDir);
         $state->next = 'done';
         $state->stop = null;
@@ -1143,7 +1180,13 @@ final class Workflow
         $state->next = is_int($position) ? (self::STEPS[$position + 1] ?? 'done') : 'done';
         $state->stop = null;
         $this->save($state);
+        $this->progress('next '.$state->next);
         $this->note('next '.$state->next);
+    }
+
+    private function isFast(): bool
+    {
+        return $this->load()->isFast();
     }
 
     private function stop(string $reason, string $detail): never
@@ -1157,6 +1200,7 @@ final class Workflow
             'resume_at' => $resumeAt,
         ];
         $this->save($state);
+        $this->progress('stop '.$reason);
         $this->note('stop '.$reason.' '.$detail);
 
         throw new FactoryStop($reason, $detail);
@@ -1368,6 +1412,139 @@ final class Workflow
     private function note(string $message): void
     {
         $this->log?->info($message);
+    }
+
+    private function progress(string $message): void
+    {
+        $this->log?->progress($message);
+    }
+
+    private function authorDoneProgress(string $step, AgentReply $reply, string $featureDir): void
+    {
+        if ($step === 'tasks') {
+            $count = count(TaskBoard::parse($this->read($this->root.'/'.$featureDir.'/tasks.md')));
+            $this->progress('tasks done ('.$count.' tasks)');
+
+            return;
+        }
+
+        $files = $this->replyFileBasenames($reply);
+        if ($files === []) {
+            $candidates = match ($step) {
+                'specify' => ['spec.md'],
+                'plan' => ['plan.md', 'research.md', 'data-model.md', 'quickstart.md', 'constraints.md'],
+                default => [],
+            };
+            foreach ($candidates as $name) {
+                if (is_file($this->root.'/'.$featureDir.'/'.$name)) {
+                    $files[] = $name;
+                }
+            }
+        }
+
+        $suffix = $files === [] ? '' : ' ('.implode(', ', $files).')';
+        $this->progress($step.' done'.$suffix);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function replyFileBasenames(AgentReply $reply): array
+    {
+        $files = $reply->payload['files_changed'] ?? [];
+        if (! is_array($files)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($files as $file) {
+            if (is_string($file) && $file !== '') {
+                $names[basename($file)] = true;
+            }
+        }
+
+        return array_keys($names);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $issues
+     */
+    private function issueCountSummary(array $issues): string
+    {
+        if ($issues === []) {
+            return '0 issues';
+        }
+
+        $counts = [];
+        foreach ($issues as $issue) {
+            $severity = AgentReply::issueSeverity($issue);
+            $counts[$severity] = ($counts[$severity] ?? 0) + 1;
+        }
+
+        $parts = [];
+        foreach (['critical', 'high', 'medium', 'low'] as $severity) {
+            if (($counts[$severity] ?? 0) > 0) {
+                $parts[] = $counts[$severity].' '.$severity;
+            }
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function boardCounts(): array
+    {
+        $board = $this->board();
+        $done = count(array_filter($board, static fn (TaskItem $task): bool => $task->done));
+
+        return [$done, count($board)];
+    }
+
+    private function progressReviewRejection(string $prompt, AgentReply $reply, bool $editedFiles): void
+    {
+        if ($editedFiles) {
+            $this->progress($prompt.' reject: edited files (verdict discarded)');
+
+            return;
+        }
+
+        $mode = $this->contract->reviewMode();
+        $issues = $reply->blockingIssuesForMode($mode);
+        $scenarios = $reply->blockingScenarios($mode);
+        $parts = [];
+
+        if ($issues !== []) {
+            $first = $issues[0];
+            $severity = AgentReply::issueSeverity($first);
+            $rule = is_string($first['rule'] ?? null) ? $first['rule'] : '';
+            $file = is_string($first['file'] ?? null) ? $first['file'] : '';
+            $location = is_string($first['location'] ?? null) ? $first['location'] : $file;
+            $head = count($issues).' issues';
+            if ($rule !== '') {
+                $head .= ' ('.$severity.': '.$rule.($location !== '' ? ' @ '.$location : '').')';
+            }
+            $parts[] = $head;
+        }
+
+        if ($scenarios !== []) {
+            $ids = [];
+            foreach ($scenarios as $scenario) {
+                $id = $scenario['id'] ?? null;
+                if (is_string($id) || is_int($id)) {
+                    $ids[] = (string) $id;
+                }
+            }
+            $parts[] = 'scenario '.($ids === [] ? 'fail' : implode(',', $ids).' fail');
+        }
+
+        if ($reply->blocksApproval() && $this->contract->assumptionsBlockApproval()) {
+            $parts[] = 'assumptions';
+        }
+
+        $detail = $parts === [] ? $reply->status : implode('; ', $parts);
+        $this->progress($prompt.' reject: '.$detail);
     }
 
     private function read(string $path): string

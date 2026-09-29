@@ -18,6 +18,21 @@ it('strips the verbose flag from the command arguments', function () {
         ->and($arguments)->toBe(['orchestrate.php', 'run', '-i', 'specs/001.md']);
 });
 
+it('strips the fast flag from the command arguments', function () {
+    [$verbose, $fast, $arguments] = FactoryLog::extractFlags([
+        'orchestrate.php',
+        'run',
+        '--fast',
+        '-v',
+        '-i',
+        'specs/001.md',
+    ]);
+
+    expect($verbose)->toBeTrue()
+        ->and($fast)->toBeTrue()
+        ->and($arguments)->toBe(['orchestrate.php', 'run', '-i', 'specs/001.md']);
+});
+
 it('records actions and shows them when verbose', function () {
     $root = sys_get_temp_dir().'/access-factory-log-'.bin2hex(random_bytes(4));
     mkdir($root);
@@ -40,7 +55,7 @@ it('records actions and shows them when verbose', function () {
     }
 });
 
-it('keeps the terminal quiet without verbose', function () {
+it('keeps the terminal quiet without verbose except progress', function () {
     $root = sys_get_temp_dir().'/access-factory-log-'.bin2hex(random_bytes(4));
     mkdir($root);
     $shown = '';
@@ -50,10 +65,14 @@ it('keeps the terminal quiet without verbose', function () {
             $shown .= $text;
         });
         $log->info('step plan');
+        $log->progress('→ plan');
         $log->stream('hidden');
 
-        expect($shown)->toBe('')
-            ->and((string) file_get_contents($root.'/factory/runs/orchestrator.log'))->toContain('step plan');
+        expect($shown)->toContain('→ plan')
+            ->and($shown)->not->toContain('step plan')
+            ->and($shown)->not->toContain('hidden')
+            ->and((string) file_get_contents($root.'/factory/runs/orchestrator.log'))->toContain('step plan')
+            ->and((string) file_get_contents($root.'/factory/runs/orchestrator.log'))->toContain('→ plan');
     } finally {
         $process = new Process(['rm', '-rf', $root]);
         $process->run();

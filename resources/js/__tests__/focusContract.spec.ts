@@ -17,6 +17,7 @@ const jsRoot = join(here, '..');
 const inScopeSfcs = [
     'App.vue',
     'components/AppHeader.vue',
+    'components/AppSidebar.vue',
     'pages/SignInPage.vue',
     'pages/ForgotPasswordPage.vue',
     'pages/ResetPasswordPage.vue',
@@ -78,10 +79,13 @@ describe('focus contract', () => {
         assertFocusVisibleRing(nativeCheckboxClass);
     });
 
-    it('includes focus-visible plus the ring token on AppHeader links and sign-out', async () => {
+    it('includes focus-visible plus the ring token on AppHeader controls and sidebar links', async () => {
         const { useCurrentUser } = await import('../composables/useCurrentUser');
+        const { openSidebar } = await import('../composables/useAppSidebar');
         const { default: AppHeader } = await import('../components/AppHeader.vue');
+        const { default: AppSidebar } = await import('../components/AppSidebar.vue');
         useCurrentUser().currentUser.value = admin;
+        openSidebar();
 
         const router = createRouter({
             history: createMemoryHistory(),
@@ -92,7 +96,11 @@ describe('focus contract', () => {
                 { path: '/company', component: { template: '<div />' } },
             ],
         });
-        const wrapper = mount(AppHeader, { global: { plugins: [router] } });
+        const Shell = defineComponent({
+            components: { AppHeader, AppSidebar },
+            template: '<div class="flex"><AppSidebar /><AppHeader /></div>',
+        });
+        const wrapper = mount(Shell, { global: { plugins: [router] } });
         await router.isReady();
 
         assertFocusVisibleRing(
@@ -102,6 +110,7 @@ describe('focus contract', () => {
             wrapper.get('[data-testid="company-profile-link"]').classes().join(' '),
         );
         assertFocusVisibleRing(wrapper.get('[data-testid="sign-out"]').classes().join(' '));
+        assertFocusVisibleRing(wrapper.get('[data-testid="sidebar-toggle"]').classes().join(' '));
     });
 
     it('does not leave bare outline-none on in-scope screens without a ring replacement', () => {

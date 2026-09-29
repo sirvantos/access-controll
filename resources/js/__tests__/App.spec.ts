@@ -10,6 +10,13 @@ vi.mock('../components/AppHeader.vue', () => ({
     },
 }));
 
+vi.mock('../components/AppSidebar.vue', () => ({
+    default: {
+        name: 'AppSidebar',
+        template: '<aside data-testid="app-sidebar" />',
+    },
+}));
+
 async function mountApp(path: string) {
     const router = createRouter({
         history: createMemoryHistory(),
@@ -43,7 +50,9 @@ describe('App', () => {
         const guest = await mountApp('/sign-in');
 
         expect(signedIn.find('[data-testid="app-header"]').exists()).toBe(true);
+        expect(signedIn.find('[data-testid="app-sidebar"]').exists()).toBe(true);
         expect(guest.find('[data-testid="app-header"]').exists()).toBe(false);
+        expect(guest.find('[data-testid="app-sidebar"]').exists()).toBe(false);
     });
 
     it('uses theme chrome tokens instead of zinc-on-white utilities', async () => {

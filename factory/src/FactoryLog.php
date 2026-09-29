@@ -20,11 +20,12 @@ final class FactoryLog
 
     /**
      * @param  list<string>  $argv
-     * @return array{0: bool, 1: list<string>}
+     * @return array{0: bool, 1: bool, 2: list<string>}
      */
-    public static function extractVerbose(array $argv): array
+    public static function extractFlags(array $argv): array
     {
         $verbose = false;
+        $fast = false;
         $arguments = [];
         foreach ($argv as $argument) {
             if ($argument === '-v' || $argument === '--verbose') {
@@ -33,8 +34,25 @@ final class FactoryLog
                 continue;
             }
 
+            if ($argument === '--fast') {
+                $fast = true;
+
+                continue;
+            }
+
             $arguments[] = $argument;
         }
+
+        return [$verbose, $fast, $arguments];
+    }
+
+    /**
+     * @param  list<string>  $argv
+     * @return array{0: bool, 1: list<string>}
+     */
+    public static function extractVerbose(array $argv): array
+    {
+        [$verbose, , $arguments] = self::extractFlags($argv);
 
         return [$verbose, $arguments];
     }
@@ -46,6 +64,17 @@ final class FactoryLog
         if ($this->verbose) {
             $this->emit($line);
         }
+    }
+
+    /**
+     * Milestone progress: always written to the log and the terminal,
+     * including when -v / --verbose is off.
+     */
+    public function progress(string $message): void
+    {
+        $line = gmdate('H:i:s').' '.$message."\n";
+        $this->append('orchestrator.log', $line);
+        $this->emit($line);
     }
 
     public function stream(string $chunk): void

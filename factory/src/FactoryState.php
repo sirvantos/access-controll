@@ -24,6 +24,7 @@ final class FactoryState
         public array $tasks,
         public ?string $authorChatId = null,
         public ?string $authorModel = null,
+        public string $mode = 'full',
     ) {}
 
     /**
@@ -42,6 +43,10 @@ final class FactoryState
         $rounds = $data['converge_rounds'] ?? 0;
         $authorChatId = $data['author_chat_id'] ?? null;
         $authorModel = $data['author_model'] ?? null;
+        $mode = $data['mode'] ?? 'full';
+        if (! is_string($mode) || ! in_array($mode, ['full', 'fast'], true)) {
+            $mode = 'full';
+        }
 
         return new self(
             $featureDir,
@@ -54,6 +59,7 @@ final class FactoryState
             self::tasks($data['tasks'] ?? []),
             is_string($authorChatId) && $authorChatId !== '' ? $authorChatId : null,
             is_string($authorModel) && $authorModel !== '' ? $authorModel : null,
+            $mode,
         );
     }
 
@@ -73,7 +79,13 @@ final class FactoryState
             'tasks' => $this->tasks,
             'author_chat_id' => $this->authorChatId,
             'author_model' => $this->authorModel,
+            'mode' => $this->mode,
         ];
+    }
+
+    public function isFast(): bool
+    {
+        return $this->mode === 'fast';
     }
 
     /**

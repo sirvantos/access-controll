@@ -53,12 +53,15 @@ Run it with Node 22 on `PATH`, because each task runs `make verify`. `cursor-age
 ```bash
 nvm use
 php factory/orchestrate.php run -v -i specs/001.md
+php factory/orchestrate.php run --fast -v -i specs/spa-visual-style-kit.md
 php factory/orchestrate.php resume -v
 ```
 
 A one-line description still works: `php factory/orchestrate.php run "..."`.
 
-`-v` / `--verbose` prints each orchestrator action and the live agent and verify output to the terminal. The same action lines are always appended to `factory/runs/orchestrator.log`, so `tail -f factory/runs/orchestrator.log` shows the current step without `-v`. Agent replies and verify output for one attempt stay in `factory/runs/<step>/attempt-N/agent.log`.
+`--fast` keeps the DevSpec path including **analyze**, but skips `make verify` and the quality/functional code reviewers after each implement wave. You review the code yourself. The mode is stored in `state.json`, so `resume` keeps it.
+
+`-v` / `--verbose` prints every orchestrator action plus the live agent and verify output. Without `-v`, the terminal still shows stage milestones (step start/done, task wave progress, analyze/review outcomes, converge summary). The same milestone lines and the detailed action lines are always appended to `factory/runs/orchestrator.log`, so `tail -f factory/runs/orchestrator.log` shows the full trace. Agent replies and verify output for one attempt stay in `factory/runs/<step>/attempt-N/agent.log`.
 
 ### What `run` takes
 
@@ -81,7 +84,7 @@ The happy path does not pause. The same checkout stays on the feature branch. Ea
 3. **plan** — writes `plan.md` and the design notes the skill requires.
 4. **tasks** — writes `tasks.md`. Task lines look like `- [ ] T014 [US1] Implement the service (depends on T012, T013)`.
 5. **analyze** — `reviewer` checks spec, plan, and tasks and does not edit files. Findings at `critical`, `high`, or `medium` are passed to `spec_editor`, continuing that model's chat. The run does not stop for a person. Analyze checks the edit again, up to the same retry limit as a task. `low` findings are skipped. The run stops only when a finding is still open after that limit.
-6. **implement** — up to five open tasks at a time. A task joins the group when every task it depends on is already done or earlier in the same group. The implementer writes that group, then the orchestrator runs `make verify` once, then the quality reviewer and the functional reviewer. Both reviewers run after a green verify, including when quality requests changes, and the next attempt receives both findings. `implement_loop.review_mode` is `strict` (default), `balanced`, or `soft`: strict blocks on assumptions and every kept finding; balanced surfaces assumptions and blocks only critical/high issues; soft ignores assumptions and blocks only `Prohibitions` / `Definition of Done` issues and scenario `fail`. The functional reviewer checks only the scenarios named by the tasks in the group. A finding about another task is left for that task, and the implementer does not build it. Three attempts. A `spec_gap` stops the run. A passed group is kept on the draft branch and each of its checkboxes becomes `- [x]`.
+6. **implement** — up to five open tasks at a time. A task joins the group when every task it depends on is already done or earlier in the same group. The implementer writes that group, then the orchestrator runs `make verify` once, then the quality reviewer and the functional reviewer. Both reviewers run after a green verify, including when quality requests changes, and the next attempt receives both findings. `implement_loop.review_mode` is `strict` (default), `balanced`, or `soft`: strict blocks on assumptions and every kept finding; balanced surfaces assumptions and blocks only critical/high issues; soft ignores assumptions and blocks only `Prohibitions` / `Definition of Done` issues and scenario `fail`. The functional reviewer checks only the scenarios named by the tasks in the group. A finding about another task is left for that task, and the implementer does not build it. Three attempts. A `spec_gap` stops the run. A passed group is kept on the draft branch and each of its checkboxes becomes `- [x]`. In `--fast` mode, verify and both code reviewers are skipped after a successful implementer `done`.
 7. **converge** — the reviewer may only append `tasks.md`. New task ids go back to implement. This repeats at most twice. No new tasks means the feature is done.
 
 `resume` continues after a stop. Clarify questions are read again from `questions.md`. An analyze failure returns to analyze. Exhausted attempts return to implement, or to converge when that step was the one that stopped.

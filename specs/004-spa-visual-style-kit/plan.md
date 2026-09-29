@@ -10,7 +10,7 @@ Restyle the existing Vue 3 SPA to shadcn-vue **New York** on Tailwind CSS v4, us
 
 - **Theme**: CSS variables alias the Tailwind palette in constraints.md (research R2). Light only.
 - **Primitives**: Copied New York Button, Input, Label, NativeSelect, Table, Alert, Badge; native checkboxes (research R1, R3).
-- **Shell**: `App.vue` + `AppHeader.vue` use the theme; selected company name stays in the header (feature 003 behaviour).
+- **Shell**: `App.vue` + `AppHeader.vue` + `AppSidebar.vue` use the theme; selected company name stays in the top bar; primary nav links live in a collapsible left sidebar (overlay below `md`, in-flow from `md` up). Guest routes hide both.
 - **Screens**: Guest auth/invitation pages and operator companies/users/profile/home templates only (research R6).
 - **Proof**: Existing Vitest behaviour + new theme/focus/select-header tests; Pest and OpenAPI untouched (research R10).
 
@@ -28,11 +28,11 @@ Restyle the existing Vue 3 SPA to shadcn-vue **New York** on Tailwind CSS v4, us
 
 **Project Type**: Same-origin SPA inside a single Laravel project.
 
-**Performance Goals**: No throughput target. SC-002: selected company name and company-data links appear in the header within 1 second without a full page reload (existing composable + Vue reactivity).
+**Performance Goals**: No throughput target. SC-002: selected company name (top bar) and company-data links (sidebar) appear within 1 second without a full page reload (existing composable + Vue reactivity).
 
 **Constraints**: [constraints.md](./constraints.md). FR-020–FR-023: no API/auth/role/isolation changes; no second component library; no wholesale admin template. Fonts bundled (no runtime font CDN). Constitution: no new npm package unless named in this plan; no TODO bodies; Larastan/Pint unchanged (no PHP).
 
-**Scale/Scope**: 4 user stories, 23 functional requirements. Screens already in the repo (guest auth + invitation, companies, company users, company profile/settings, home, app shell). No new product areas.
+**Scale/Scope**: 4 user stories, 24 functional requirements. Screens already in the repo (guest auth + invitation, companies, company users, company profile/settings, home, app shell with responsive sidebar). No new product areas.
 
 ## Constitution Check
 
@@ -105,9 +105,11 @@ resources/js/
 ├── lib/utils.ts                        # cn()
 ├── components/
 │   ├── ui/                             # copied New York primitives (R1 inventory)
-│   ├── AppHeader.vue                   # theme + truncate/title for company name
+│   ├── AppHeader.vue                   # top bar: menu toggle, email, company name/prompt, sign-out
+│   ├── AppSidebar.vue                  # left nav; drawer below md, in-flow from md
 │   └── HealthBadge.vue                 # unchanged (not in scope)
-├── App.vue                             # slate-50 chrome, white panel, guest header hide
+├── composables/useAppSidebar.ts        # open/close + viewport default
+├── App.vue                             # slate-50 chrome, sidebar+main, guest chrome hide
 ├── pages/
 │   ├── SignInPage.vue
 │   ├── ForgotPasswordPage.vue
@@ -119,9 +121,9 @@ resources/js/
 │   └── CompanyProfilePage.vue
 ├── router/index.ts                     # unchanged behaviour
 ├── api/                                # unchanged
-├── composables/                        # unchanged behaviour
-├── locales/{en,ru}.json                # only if a new a11y string is required
-└── **/__tests__/*.spec.ts              # existing + new theme/focus/header integration
+├── composables/                        # behaviour unchanged except useAppSidebar for shell
+├── locales/{en,ru}.json                # nav.openMenu / nav.closeMenu / nav.menu (+ any a11y string)
+└── **/__tests__/*.spec.ts              # existing + new theme/focus/shell integration
 resources/views/welcome.blade.php       # unchanged shell (@vite already)
 ```
 
@@ -133,7 +135,8 @@ resources/views/welcome.blade.php       # unchanged shell (@vite already)
 - Copy only the primitive inventory in [contracts/primitives.md](./contracts/primitives.md).
 - Bind `data-testid` on native elements ([contracts/test-hooks.md](./contracts/test-hooks.md)).
 - Replace per-page `class="rounded bg-zinc-900 …"` / `border-zinc-300` with primitives.
-- Header selection rules stay exactly as in `AppHeader.vue` today (`hasUsableSelection`, role checks).
+- Header/sidebar selection rules stay exactly as in `AppHeader.vue` / `AppSidebar.vue` today (`hasUsableSelection`, role checks).
+- Custom left sidebar (not the shadcn-vue Sidebar registry item); toggle via top-bar button; mobile overlay + Escape/backdrop close.
 - `CompanyUsersPage` `findAll('button')` testid list: do not add extra buttons when invitations are empty.
 - Import `@fontsource/ibm-plex-sans` **cyrillic** and **latin** for 400/500/600.
 - Do not edit `factory/`, `.cursor/`, `.specify/`, `.github/`, `Makefile`, `phpstan.neon`, `deptrac.php`, `phpunit.xml`, backend PHP, or `public/swagger.yaml`.

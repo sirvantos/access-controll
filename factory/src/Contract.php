@@ -175,6 +175,25 @@ final class Contract
     }
 
     /**
+     * Default factory run mode from yaml: full | fast.
+     * CLI --fast overrides this for a new run and is stored on state.json.
+     * fast keeps specify→clarify→plan→tasks→analyze→implement→converge,
+     * but skips make verify and quality/functional code reviewers.
+     */
+    public function defaultMode(): string
+    {
+        $mode = $this->data['mode'] ?? 'full';
+        if (is_string($mode)) {
+            $mode = strtolower(trim($mode));
+            if (in_array($mode, ['full', 'fast'], true)) {
+                return $mode;
+            }
+        }
+
+        return 'full';
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function cliConfig(string $role): array
