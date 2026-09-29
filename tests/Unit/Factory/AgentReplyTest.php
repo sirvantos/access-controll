@@ -33,7 +33,24 @@ it('discards an issue whose rule is not real', function () {
         ->and($kept->reviewAccepted())->toBeFalse()
         ->and($assumptions->blocksApproval())->toBeTrue()
         ->and($assumptions->reviewAccepted())->toBeFalse()
-        ->and($scenario->reviewAccepted())->toBeFalse();
+        ->and($assumptions->reviewAccepted('balanced'))->toBeTrue()
+        ->and($assumptions->reviewAccepted('soft'))->toBeTrue()
+        ->and($scenario->reviewAccepted())->toBeFalse()
+        ->and($scenario->reviewAccepted('soft'))->toBeTrue();
+});
+
+it('applies balanced and soft issue gates', function () {
+    $medium = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"medium","rule":"constitution:III","problem":"test blanket"}],"assumptions":[]}');
+    $high = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"high","rule":"constitution:III","problem":"test blanket"}],"assumptions":[]}');
+    $prohibitions = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"severity":"medium","rule":"constitution:Prohibitions","problem":"new package"}],"assumptions":[]}');
+    $fail = AgentReply::fromStream('{"verdict":"changes_requested","issues":[],"scenarios":[{"id":"1","result":"fail"}]}');
+
+    expect($medium->reviewAccepted('balanced'))->toBeTrue()
+        ->and($high->reviewAccepted('balanced'))->toBeFalse()
+        ->and($medium->reviewAccepted('soft'))->toBeTrue()
+        ->and($high->reviewAccepted('soft'))->toBeTrue()
+        ->and($prohibitions->reviewAccepted('soft'))->toBeFalse()
+        ->and($fail->reviewAccepted('soft'))->toBeFalse();
 });
 
 it('treats critical through medium findings as actionable and skips low', function () {
@@ -47,4 +64,14 @@ it('treats critical through medium findings as actionable and skips low', functi
         ->and($low->actionableIssues())->toBe([])
         ->and($low->blockingIssues())->toHaveCount(1)
         ->and($unstated->actionableIssues())->toHaveCount(1);
+});
+
+it('keeps unknown analyze rules visible as discarded', function () {
+    $reply = AgentReply::fromStream('{"verdict":"changes_requested","issues":[{"file":"plan.md","line":71,"severity":"high","rule":"inconsistency","problem":"companies has no company_id"},{"rule":"constitution:I","problem":"layer"}],"assumptions":[]}');
+
+    expect($reply->discardedIssues())->toHaveCount(1)
+        ->and($reply->actionableIssues())->toHaveCount(1)
+        ->and($reply->discardedSummary())->toBe('- inconsistency plan.md:71: companies has no company_id')
+        ->and(AgentReply::analyzeRuleInstructions())->toContain('Any other rule is discarded and is not repaired.')
+        ->and(AgentReply::analyzeRuleInstructions())->toContain('plan:Module boundary exceptions');
 });

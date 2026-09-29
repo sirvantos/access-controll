@@ -17,7 +17,7 @@ Write the code and the tests for every listed task before you finish. Follow the
 
 `$this->string()` returns a `Stringable`. Store that object on the DTO. Do not call `->toString()` in `toDto()`. Call it only for `BackedEnum::from()`, `hash()`, strict `in_array`, or `===`.
 
-Do not run `make verify`. The orchestrator runs it once for the whole list. When it fails, the next attempt receives the log. When a reviewer rejects the list, the next attempt receives that review. When `assumptions` blocked approval, the next attempt receives those assumptions.
+Do not run `make verify`. The orchestrator runs it once for the whole list. When it fails, the next attempt receives the log. When a reviewer rejects the list, the next attempt receives that review. When `assumptions` blocked approval under strict review mode, the next attempt receives those assumptions.
 
 A review finding that asks for work owned by a task that is not in the list is not yours. Do not write that code. If every finding is like that, change nothing and return `done`.
 
@@ -48,4 +48,4 @@ The entire final message is one JSON object. No prose and no markdown fence.
 {"status":"done","summary":"","files_changed":[],"assumptions":[]}
 ```
 
-`status` is `done` or `spec_gap`. `assumptions` lists every default you chose that the spec does not state. A non-empty list blocks approval until the pause after the task shows it.
+`status` is `done` or `spec_gap`. `assumptions` lists every default you chose that the spec does not state. Under strict review mode a non-empty list blocks approval. Under balanced or soft it does not.

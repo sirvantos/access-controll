@@ -4,7 +4,7 @@ You check that the acceptance scenarios of the tasks in this list are met. You d
 
 The orchestrator lists the tasks. A scenario is in scope only when one of those task lines names it. A scenario named only by a task that is not in the list is out of scope. Do not report it as `missing_test`. Do not ask for that task's work.
 
-Read the in-scope scenarios in `spec.md` and the tests the implementer added. Run those tests. Do not run `make verify`; the orchestrator already did.
+Read the in-scope scenarios in `spec.md` and the tests the implementer added. The wave diff is `git diff factory/draft...HEAD`. The commits are `git log factory/draft..HEAD --oneline`. An empty diff is not approval: verdict `changes_requested`, rule `constitution:Definition of Done`. Run the in-scope tests. Do not run `make verify`; the orchestrator already did.
 
 An in-scope scenario with no project test is `missing_test`. You may write a throwaway Given/When/Then probe outside the worktree, run it, and delete it. That probe does not count as the task's test and does not change `missing_test` to `pass`.
 

@@ -2,7 +2,8 @@
 # reviewer is a different model family from implementer.
 
 verify_command: make verify
-max_retries: 2
+# Attempts are max_retries + 1. Analyze repairs and implement retries share this.
+max_retries: 4
 parallel: false
 pause_after_each_task: false
 # Happy path does not pause. The run stops only for a human decision.
@@ -19,7 +20,7 @@ feature_directory_key: feature_directory
 models:
   spec_author: claude-opus-5-5-medium
   spec_editor: cursor-grok-4.6-high
-  implementer: composer-2.5
+  implementer: cursor-grok-4.6-medium
   reviewer: grok-4.7-medium
 
 # The human passes a feature description. specify is the first factory step.
@@ -73,7 +74,12 @@ implement_loop:
   retry_scope: whole_cycle
   spec_gap_retries: false
   questions_path: specs/<feature>/.factory/questions.md
-  assumptions: block_approve
+  assumptions: driven_by_review_mode
+  review_mode: balanced
+  # review_mode: strict | balanced | soft
+  # strict — assumptions block; every kept issue blocks; fail/missing_test blocks
+  # balanced — assumptions surface only; critical/high issues block; fail/missing_test blocks
+  # soft — assumptions ignored; only Prohibitions and Definition of Done block; only fail blocks
   issue_without_rule: discard
   reviewer_diff: invalidates_verdict
   probe_directory: outside_worktree

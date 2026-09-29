@@ -65,6 +65,116 @@ final class Contract
     }
 
     /**
+     * Implement review strictness: strict | balanced | soft.
+     */
+    public function reviewMode(): string
+    {
+        $loop = $this->data['implement_loop'] ?? null;
+        $mode = is_array($loop) ? ($loop['review_mode'] ?? null) : null;
+        if (is_string($mode)) {
+            $mode = strtolower(trim($mode));
+            if (in_array($mode, ['strict', 'balanced', 'soft'], true)) {
+                return $mode;
+            }
+        }
+
+        return 'strict';
+    }
+
+    public function assumptionsBlockApproval(): bool
+    {
+        return $this->reviewMode() === 'strict';
+    }
+
+    /**
+     * @param  array<string, mixed>  $issue
+     */
+    public function issueBlocksReview(array $issue): bool
+    {
+        return match ($this->reviewMode()) {
+            'balanced' => in_array(AgentReply::issueSeverity($issue), ['critical', 'high'], true),
+            'soft' => in_array($issue['rule'] ?? null, [
+                'constitution:Prohibitions',
+                'constitution:Definition of Done',
+            ], true),
+            default => true,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $scenario
+     */
+    public function scenarioBlocksReview(array $scenario): bool
+    {
+        $result = $scenario['result'] ?? null;
+        if (! is_string($result) || $result === 'pass') {
+            return false;
+        }
+
+        return match ($this->reviewMode()) {
+            'soft' => $result === 'fail',
+            default => true,
+        };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $issues
+     * @return list<array<string, mixed>>
+     */
+    public function blockingReviewIssues(array $issues): array
+    {
+        $blocking = [];
+        foreach ($issues as $issue) {
+            if ($this->issueBlocksReview($issue)) {
+                $blocking[] = $issue;
+            }
+        }
+
+        return $blocking;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $scenarios
+     * @return list<array<string, mixed>>
+     */
+    public function blockingReviewScenarios(array $scenarios): array
+    {
+        $blocking = [];
+        foreach ($scenarios as $scenario) {
+            if ($this->scenarioBlocksReview($scenario)) {
+                $blocking[] = $scenario;
+            }
+        }
+
+        return $blocking;
+    }
+
+    public function reviewModeInstructions(): string
+    {
+        $mode = $this->reviewMode();
+
+        $body = match ($mode) {
+            'balanced' => <<<'TXT'
+            Assumptions from the implementer are recorded and do not block approval.
+            Only critical and high issues block approval. Medium and low findings are advisory.
+            A scenario result of fail or missing_test blocks approval.
+            TXT,
+            'soft' => <<<'TXT'
+            Assumptions from the implementer do not block approval.
+            Only issues with rule constitution:Prohibitions or constitution:Definition of Done block approval. Every other finding is advisory.
+            A scenario result of fail blocks approval. missing_test is advisory.
+            TXT,
+            default => <<<'TXT'
+            Assumptions from the implementer block approval.
+            Every kept issue blocks approval.
+            A scenario result of fail or missing_test blocks approval.
+            TXT,
+        };
+
+        return "Review mode: {$mode}.\n{$body}";
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function cliConfig(string $role): array

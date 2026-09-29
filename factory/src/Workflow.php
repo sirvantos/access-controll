@@ -251,6 +251,8 @@ final class Workflow
         while (true) {
             $round++;
             $reply = $this->runAnalyze($state, $round);
+            $this->noteDiscardedAnalyzeRules($reply);
+
             if ($this->analyzeClear($reply)) {
                 $this->publishDraft('spec '.$state->featureDir, $state->featureDir);
                 $this->advance('analyze');
@@ -260,7 +262,7 @@ final class Workflow
 
             $issues = $reply->actionableIssues();
             if ($issues === [] || $repairs >= $max) {
-                $this->stop('analyze_failure', 'Analyze requested changes. Implementation did not start.');
+                $this->stop('analyze_failure', $this->analyzeFailureDetail($reply));
             }
 
             $repairs++;
@@ -302,7 +304,28 @@ final class Workflow
             return false;
         }
 
-        return $reply->actionableIssues() === [];
+        return $reply->actionableIssues() === [] && $reply->discardedIssues() === [];
+    }
+
+    private function noteDiscardedAnalyzeRules(AgentReply $reply): void
+    {
+        $summary = $reply->discardedSummary();
+        if ($summary === '') {
+            return;
+        }
+
+        $this->note('discarded analyze rules'."\n".$summary);
+    }
+
+    private function analyzeFailureDetail(AgentReply $reply): string
+    {
+        $detail = 'Analyze requested changes. Implementation did not start.';
+        $summary = $reply->discardedSummary();
+        if ($summary === '') {
+            return $detail;
+        }
+
+        return $detail."\nDiscarded rules are not repaired:\n".$summary;
     }
 
     /**
@@ -386,6 +409,7 @@ final class Workflow
     {
         $label = $this->waveLabel($wave);
         [$attempts, $chatId] = $this->waveProgress($wave);
+        $committed = $this->attemptTreeCommitted($label);
         $this->note('task '.$label);
 
         while ($attempts < $this->contract->maxAttempts()) {
@@ -395,10 +419,11 @@ final class Workflow
             $this->note('task '.$label.' attempt '.$attempts.' of '.$this->contract->maxAttempts());
             $worktree = $this->prepareWorktree($label, 'implementer');
             $this->overlayFeature($worktree, $this->load()->featureDir);
+            $followUp = $chatId !== null && $chatId !== '' && $committed;
             $reply = $this->invoke(
                 $worktree,
                 'implementer',
-                $this->implementPrompt($wave),
+                $this->implementPrompt($wave, $followUp),
                 $chatId,
                 $label,
                 $attempts,
@@ -411,6 +436,8 @@ final class Workflow
                 $this->assertCleanRole('implementer', $featureDir, $worktree);
             } catch (FactoryStop $stop) {
                 $this->git->discard($worktree);
+                $committed = false;
+                $this->markAttemptTree($label, false);
                 $this->rememberWave($wave, $attempts, $chatId);
                 if ($attempts >= $this->contract->maxAttempts()) {
                     $this->stop($stop->reason, $stop->getMessage());
@@ -430,6 +457,8 @@ final class Workflow
 
             if ($reply->status !== 'done') {
                 $this->note('task '.$label.' status '.$reply->status);
+                $committed = false;
+                $this->markAttemptTree($label, false);
                 $this->rememberWave($wave, $attempts, $chatId);
                 $this->git->discard($worktree);
                 $this->git->removeWorktree($worktree, '');
@@ -438,6 +467,8 @@ final class Workflow
             }
 
             $this->git->commit($worktree, $label.' attempt '.$attempts);
+            $committed = true;
+            $this->markAttemptTree($label, true);
             $verified = $this->verify($worktree, $label, $attempts);
             if (! $verified) {
                 $this->rememberFeedback($label, [
@@ -445,13 +476,18 @@ final class Workflow
                     'log' => $this->verifyLog($label, $attempts),
                 ]);
             } elseif ($reply->blocksApproval()) {
-                $this->rememberFeedback($label, [
-                    'kind' => 'assumptions',
-                    'assumptions' => $reply->payload['assumptions'] ?? [],
-                ]);
+                if ($this->contract->assumptionsBlockApproval()) {
+                    $this->rememberFeedback($label, [
+                        'kind' => 'assumptions',
+                        'assumptions' => $reply->payload['assumptions'] ?? [],
+                    ]);
+                } else {
+                    $this->note('task '.$label.' assumptions surfaced under '.$this->contract->reviewMode());
+                }
             }
 
-            if (! $verified || $reply->blocksApproval() || ! $this->reviewsPass($worktree, $wave, $attempts)) {
+            $assumptionsBlock = $reply->blocksApproval() && $this->contract->assumptionsBlockApproval();
+            if (! $verified || $assumptionsBlock || ! $this->reviewsPass($worktree, $wave, $attempts)) {
                 $this->note('task '.$label.' attempt '.$attempts.' rejected');
                 $this->rememberWave($wave, $attempts, $chatId);
                 $this->git->removeWorktree($worktree, '');
@@ -488,13 +524,16 @@ final class Workflow
     {
         $label = $this->waveLabel($wave);
         $context = $this->waveContext($wave);
+        $mode = $this->contract->reviewMode();
+        $modeBlock = $this->contract->reviewModeInstructions();
+        $rejections = [];
         foreach (['quality_reviewer', 'functional_reviewer'] as $prompt) {
             $this->note('review '.$prompt.' for '.$label);
             $before = $this->git->changedFiles($worktree);
             $reply = $this->invoke(
                 $worktree,
                 'reviewer',
-                $this->read($this->root.'/factory/prompts/'.$prompt.'.md')."\n\n".$context,
+                $this->read($this->root.'/factory/prompts/'.$prompt.'.md')."\n\n".$modeBlock."\n\n".$context,
                 null,
                 $label.'-'.$prompt,
                 $attempt,
@@ -502,21 +541,28 @@ final class Workflow
 
             if ($this->git->changedFiles($worktree) !== $before) {
                 $this->note('review '.$prompt.' edited files');
-                $this->rememberFeedback($label, $this->reviewFeedback($prompt, $reply, true));
+                $rejections[] = $this->reviewFeedback($prompt, $reply, true);
                 $this->git->discard($worktree);
 
-                return false;
+                continue;
             }
 
             $this->note('review '.$prompt.' '.$reply->status);
-            if (! $reply->reviewAccepted()) {
-                $this->rememberFeedback($label, $this->reviewFeedback($prompt, $reply, false));
-
-                return false;
+            if (! $reply->reviewAccepted($mode)) {
+                $rejections[] = $this->reviewFeedback($prompt, $reply, false);
             }
         }
 
-        return true;
+        if ($rejections === []) {
+            return true;
+        }
+
+        $this->rememberFeedback($label, [
+            'kind' => 'reviews',
+            'reviews' => $rejections,
+        ]);
+
+        return false;
     }
 
     private function converge(): void
@@ -569,17 +615,43 @@ final class Workflow
     /**
      * @param  list<TaskItem>  $wave
      */
-    private function implementPrompt(array $wave): string
+    private function implementPrompt(array $wave, bool $followUp): string
     {
-        $prompt = $this->read($this->root.'/factory/prompts/implementer.md')
-            ."\n\n".$this->waveContext($wave)
-            ."\n\nImplement these tasks in the listed order. Do not run make verify. Do not commit.";
         $feedback = $this->readFeedback($this->waveLabel($wave));
-        if ($feedback === null) {
-            return $prompt;
+        $feedbackBlock = $feedback === null ? '' : "\n\n".$this->feedbackText($feedback);
+        if ($followUp) {
+            return $this->implementFollowUp().$feedbackBlock;
         }
 
-        return $prompt."\n\n".$this->feedbackText($feedback);
+        return $this->read($this->root.'/factory/prompts/implementer.md')
+            ."\n\n".$this->contract->reviewModeInstructions()
+            ."\n\n".$this->waveContext($wave)
+            ."\n\nImplement these tasks in the listed order. Do not run make verify. Do not commit."
+            .$feedbackBlock;
+    }
+
+    private function implementFollowUp(): string
+    {
+        return 'The previous attempt is still on this branch. Continue from that code.'
+            ."\n".'Return one JSON object and nothing else: {"status":"done","summary":"","files_changed":[],"assumptions":[]}'
+            ."\n".'Do not commit. Do not run make verify. Do not implement a task that is not in the original list.';
+    }
+
+    private function markAttemptTree(string $label, bool $committed): void
+    {
+        $directory = $this->root.'/factory/runs/'.$label;
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($directory.'/tree.json', $this->encodeJson(['committed' => $committed])."\n");
+    }
+
+    private function attemptTreeCommitted(string $label): bool
+    {
+        $decoded = json_decode($this->read($this->root.'/factory/runs/'.$label.'/tree.json'), true);
+
+        return is_array($decoded) && ($decoded['committed'] ?? false) === true;
     }
 
     /**
@@ -645,6 +717,25 @@ final class Workflow
     private function feedbackText(array $feedback): string
     {
         $kind = $feedback['kind'] ?? '';
+        if ($kind === 'reviews') {
+            $reviews = $feedback['reviews'] ?? [];
+            if (! is_array($reviews)) {
+                return '';
+            }
+
+            $parts = [];
+            foreach ($reviews as $review) {
+                if (! is_array($review)) {
+                    continue;
+                }
+
+                /** @var array<string, mixed> $review */
+                $parts[] = $this->feedbackText($review);
+            }
+
+            return implode("\n\n", $parts);
+        }
+
         if ($kind === 'verify') {
             $log = is_string($feedback['log'] ?? null) ? $feedback['log'] : '';
 
@@ -678,13 +769,15 @@ final class Workflow
      */
     private function reviewFeedback(string $reviewer, AgentReply $reply, bool $editedFiles): array
     {
+        $mode = $this->contract->reviewMode();
+
         return [
             'kind' => 'review',
             'reviewer' => $reviewer,
             'edited_files' => $editedFiles,
-            'issues' => $reply->blockingIssues(),
+            'issues' => $editedFiles ? $reply->blockingIssues() : $reply->blockingIssuesForMode($mode),
             'assumptions' => is_array($reply->payload['assumptions'] ?? null) ? $reply->payload['assumptions'] : [],
-            'scenarios' => $this->failingScenarios($reply),
+            'scenarios' => $editedFiles ? $this->failingScenarios($reply) : $reply->blockingScenarios($mode),
         ];
     }
 
@@ -835,7 +928,7 @@ final class Workflow
             ? '{"verdict":"approve","issues":[],"assumptions":[]}'
             : '{"status":"done","summary":"","files_changed":[],"assumptions":[]}';
         $severity = $step === 'analyze'
-            ? "\nA finding has file, line, severity, rule, problem, and fix. Severity is critical, high, medium, or low. A constitution conflict is critical. Approve only with an empty issues array."
+            ? "\nA finding has file, line, severity, rule, problem, and fix. Severity is critical, high, medium, or low. A constitution conflict is critical. Approve only with an empty issues array.\n".AgentReply::analyzeRuleInstructions()
             : '';
 
         return <<<PROMPT
