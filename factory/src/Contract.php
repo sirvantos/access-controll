@@ -211,7 +211,7 @@ final class Contract
             'Write(phpunit.xml)',
         ];
 
-        if ($role === 'implementer') {
+        if ($role === 'implementer' || $role === 'feature_tester') {
             array_push(
                 $deny,
                 'Write(specs/**/spec.md)',

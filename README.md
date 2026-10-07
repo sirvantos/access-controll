@@ -84,7 +84,7 @@ The happy path does not pause. The same checkout stays on the feature branch. Ea
 3. **plan** — writes `plan.md` and the design notes the skill requires.
 4. **tasks** — writes `tasks.md`. Task lines look like `- [ ] T014 [US1] Implement the service (depends on T012, T013)`.
 5. **analyze** — `reviewer` checks spec, plan, and tasks and does not edit files. Findings at `critical`, `high`, or `medium` are passed to `spec_editor`, continuing that model's chat. The run does not stop for a person. Analyze checks the edit again, up to the same retry limit as a task. `low` findings are skipped. The run stops only when a finding is still open after that limit.
-6. **implement** — up to five open tasks at a time. A task joins the group when every task it depends on is already done or earlier in the same group. The implementer writes that group, then the orchestrator runs `make verify` once, then the quality reviewer and the functional reviewer. Both reviewers run after a green verify, including when quality requests changes, and the next attempt receives both findings. `implement_loop.review_mode` is `strict` (default), `balanced`, or `soft`: strict blocks on assumptions and every kept finding; balanced surfaces assumptions and blocks only critical/high issues; soft ignores assumptions and blocks only `Prohibitions` / `Definition of Done` issues and scenario `fail`. The functional reviewer checks only the scenarios named by the tasks in the group. A finding about another task is left for that task, and the implementer does not build it. Three attempts. A `spec_gap` stops the run. A passed group is kept on the draft branch and each of its checkboxes becomes `- [x]`. In `--fast` mode, verify and both code reviewers are skipped after a successful implementer `done`.
+6. **implement** — up to five open tasks at a time. A task joins the group when every task it depends on is already done or earlier in the same group. Each attempt runs two agents on that group: feature tests (`feature_tester`), then production code and unit tests (`implementer`). The orchestrator then runs `make verify` once, then the quality reviewer and the functional reviewer. Both reviewers run after a green verify, including when quality requests changes, and the next attempt receives both findings. `implement_loop.review_mode` is `strict` (default), `balanced`, or `soft`: strict blocks on assumptions and every kept finding; balanced surfaces assumptions and blocks only critical/high issues; soft ignores assumptions and blocks only `Prohibitions` / `Definition of Done` issues and scenario `fail`. The functional reviewer checks only the scenarios named by the tasks in the group. A finding about another task is left for that task, and the implementer does not build it. Three attempts. A `spec_gap` stops the run. A passed group is kept on the draft branch and each of its checkboxes becomes `- [x]`. In `--fast` mode, verify and both code reviewers are skipped after a successful implementer `done`.
 7. **converge** — the reviewer may only append `tasks.md`. New task ids go back to implement. This repeats at most twice. No new tasks means the feature is done.
 
 `resume` continues after a stop. Clarify questions are read again from `questions.md`. An analyze failure returns to analyze. Exhausted attempts return to implement, or to converge when that step was the one that stopped.
@@ -139,11 +139,12 @@ A lock in `state.json` stores the orchestrator pid. A live pid blocks a second `
 Models set in the contract:
 
 - **spec_author** — `claude-opus-5-5-medium`, used for specify and clarify. Those two steps share one chat.
-- **spec_editor** — `composer-2.5`, used for plan, tasks, and analyze repairs. Those steps share a second chat. A chat stays on one model, so plan does not resume the Opus chat.
-- **implementer** — `composer-2.5`, used for one task at a time
-- **reviewer** — `grok-4.7-high`, used for analyze, both reviews, and converge
+- **spec_editor** — `cursor-grok-4.6-high`, used for plan, tasks, and analyze repairs. Those steps share a second chat. A chat stays on one model, so plan does not resume the Opus chat.
+- **feature_tester** — `cursor-grok-4.6-medium`, writes the feature tests for the current implement wave
+- **implementer** — `claude-haiku-5-5`, writes production code and unit tests after those feature tests
+- **reviewer** — `grok-4.7-medium`, used for analyze, both reviews, and converge
 
-`reviewer` is a different model family from the implementer.
+`reviewer` is a different model family from the coding implementer.
 
 ### Later: run without the laptop
 

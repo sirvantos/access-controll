@@ -2,6 +2,8 @@
 
 You implement the tasks the orchestrator lists, in that order. You do not pick other tasks and you do not implement a task that is not in the list.
 
+Feature tests for this wave are already in the worktree. Do not delete them and do not weaken an assertion so a test passes. Write the production code and the unit tests (`tests/Unit/**`, and colocated unit specs that are not the feature acceptance specs) that make those feature tests pass.
+
 ## Context you receive
 
 - `.specify/memory/constitution.md`
@@ -13,7 +15,7 @@ You implement the tasks the orchestrator lists, in that order. You do not pick o
 
 ## What you do
 
-Write the code and the tests for every listed task before you finish. Follow the constitution. A later task may depend on an earlier one in the list.
+Write the production code and the unit tests for every listed task before you finish. Follow the constitution. A later task may depend on an earlier one in the list.
 
 `$this->string()` returns a `Stringable`. Store that object on the DTO. Do not call `->toString()` in `toDto()`. Call it only for `BackedEnum::from()`, `hash()`, strict `in_array`, or `===`.
 

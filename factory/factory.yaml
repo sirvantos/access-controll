@@ -1,8 +1,9 @@
 # Factory contract. The orchestrator parses this file.
-# reviewer is a different model family from implementer.
+# reviewer is a different model family from the coding implementer.
+# Each implement wave is two agents: feature tests, then production code and unit tests.
 
 # Run mode: full (default) or fast.
-# full — specify→clarify→plan→tasks→analyze→implement(+verify+quality+functional)→converge
+# full — specify→clarify→plan→tasks→analyze→implement(feature tests, code+unit tests, verify, quality, functional)→converge
 # fast — same DevSpec path including analyze, but implement skips make verify and code reviewers
 mode: full
 
@@ -25,7 +26,8 @@ feature_directory_key: feature_directory
 models:
   spec_author: claude-opus-5-5-medium
   spec_editor: cursor-grok-4.6-high
-  implementer: cursor-grok-4.6-medium
+  feature_tester: cursor-grok-4.6-medium
+  implementer: claude-haiku-5-5
   reviewer: grok-4.7-medium
 
 # The human passes a feature description. specify is the first factory step.
@@ -60,6 +62,13 @@ workflow:
     required: true
     scope: one_task
     prompt: factory/prompts/implementer.md
+    steps:
+      - id: feature_tests
+        role: feature_tester
+        prompt: factory/prompts/feature_tester.md
+      - id: code
+        role: implementer
+        prompt: factory/prompts/implementer.md
   - id: converge
     command: speckit-converge
     role: converge
@@ -71,7 +80,8 @@ workflow:
 # The factory passes exactly one task id and uses factory/prompts/implementer.md.
 implement_loop:
   order:
-    - implement
+    - feature_tests
+    - code
     - verify
     - quality_review
     - functional_review
@@ -95,6 +105,7 @@ implement_loop:
     - functional_verdict
     - assumptions
   prompts:
+    feature_tester: factory/prompts/feature_tester.md
     implementer: factory/prompts/implementer.md
     quality_reviewer: factory/prompts/quality_reviewer.md
     functional_reviewer: factory/prompts/functional_reviewer.md
@@ -117,6 +128,22 @@ allowed_writes_in_specs:
   - specs/*/.factory/**
 
 roles:
+  feature_tester:
+    cli_profile: .cursor/cli.json
+    protected_paths:
+      - specs/**
+      - .specify/**
+      - factory/**
+      - .cursor/**
+      - .github/**
+      - .gitlab-ci.yml
+      - .gitlab/**
+      - Makefile
+      - phpstan.neon
+      - deptrac.php
+      - phpunit.xml
+    allowed_writes_in_specs:
+      - specs/*/.factory/**
   implementer:
     cli_profile: .cursor/cli.json
     protected_paths:

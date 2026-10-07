@@ -11,7 +11,7 @@ final class FactoryState
     /**
      * @param  array{reason: string, detail: string, resume_at: string}|null  $stop
      * @param  array{pid: int, at: string}|null  $lock
-     * @param  array<string, array{attempts: int, status: string, chat_id: string|null, spec_hash: string}>  $tasks
+     * @param  array<string, array{attempts: int, status: string, chat_id: string|null, spec_hash: string, feature_chat_id: string|null}>  $tasks
      */
     public function __construct(
         public string $featureDir,
@@ -89,25 +89,32 @@ final class FactoryState
     }
 
     /**
-     * @return array{attempts: int, status: string, chat_id: string|null, spec_hash: string}
+     * @return array{attempts: int, status: string, chat_id: string|null, spec_hash: string, feature_chat_id: string|null}
      */
     public function task(string $id): array
     {
-        return $this->tasks[$id] ?? [
+        $record = $this->tasks[$id] ?? [
             'attempts' => 0,
             'status' => 'pending',
             'chat_id' => null,
             'spec_hash' => '',
+            'feature_chat_id' => null,
         ];
+        $record['feature_chat_id'] ??= null;
+
+        return $record;
     }
 
-    public function putTask(string $id, int $attempts, string $status, ?string $chatId, string $specHash): void
+    public function putTask(string $id, int $attempts, string $status, ?string $chatId, string $specHash, ?string $featureChatId = null): void
     {
+        $previous = $this->tasks[$id]['feature_chat_id'] ?? null;
+
         $this->tasks[$id] = [
             'attempts' => $attempts,
             'status' => $status,
             'chat_id' => $chatId,
             'spec_hash' => $specHash,
+            'feature_chat_id' => $featureChatId ?? (is_string($previous) ? $previous : null),
         ];
     }
 
@@ -154,7 +161,7 @@ final class FactoryState
     }
 
     /**
-     * @return array<string, array{attempts: int, status: string, chat_id: string|null, spec_hash: string}>
+     * @return array<string, array{attempts: int, status: string, chat_id: string|null, spec_hash: string, feature_chat_id: string|null}>
      */
     private static function tasks(mixed $value): array
     {
@@ -171,12 +178,14 @@ final class FactoryState
             $attempts = $record['attempts'] ?? 0;
             $status = $record['status'] ?? 'pending';
             $chatId = $record['chat_id'] ?? null;
+            $featureChatId = $record['feature_chat_id'] ?? null;
             $hash = $record['spec_hash'] ?? '';
             $tasks[$id] = [
                 'attempts' => is_int($attempts) ? $attempts : 0,
                 'status' => is_string($status) ? $status : 'pending',
                 'chat_id' => is_string($chatId) ? $chatId : null,
                 'spec_hash' => is_string($hash) ? $hash : '',
+                'feature_chat_id' => is_string($featureChatId) ? $featureChatId : null,
             ];
         }
 

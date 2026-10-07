@@ -718,6 +718,59 @@ it('resumes the author chat and uses the editor model from plan onward', functio
     }
 });
 
+it('runs feature tests and coding on different models', function () {
+    $root = factoryRoot();
+
+    try {
+        $agent = new class implements AgentClient
+        {
+            /** @var list<array{model: string, prompt: string}> */
+            public array $seen = [];
+
+            public function run(string $cwd, string $model, string $prompt, ?string $chatId): AgentReply
+            {
+                $this->seen[] = ['model' => $model, 'prompt' => $prompt];
+                $dir = 'specs/001-demo';
+
+                if (str_contains($prompt, 'IMPLEMENT_TASK')) {
+                    file_put_contents($cwd.'/recorded.txt', "pass\n");
+                }
+
+                if (str_contains($prompt, 'speckit-specify')) {
+                    file_put_contents($cwd.'/'.$dir.'/spec.md', "User Story 1\n\nA pass is recorded.\n");
+                }
+
+                if (str_contains($prompt, 'speckit-plan')) {
+                    file_put_contents($cwd.'/'.$dir.'/plan.md', "plan\n");
+                }
+
+                if (str_contains($prompt, 'speckit-tasks')) {
+                    file_put_contents($cwd.'/'.$dir.'/tasks.md', "## Phase 1: Setup\n\n- [ ] T001 Record a pass\n");
+                }
+
+                if (str_contains($prompt, 'QUALITY_REVIEW') || str_contains($prompt, 'FUNCTIONAL_REVIEW') || str_contains($prompt, 'speckit-analyze')) {
+                    return AgentReply::fromStream('{"verdict":"approve","issues":[],"assumptions":[],"scenarios":[{"id":"1","result":"pass"}]}');
+                }
+
+                return AgentReply::fromStream('{"status":"done","summary":"ok","assumptions":[]}');
+            }
+        };
+
+        factoryWorkflow($root, $agent)->start('Record a gate pass');
+
+        $steps = [];
+        foreach ($agent->seen as $call) {
+            if (str_contains($call['prompt'], 'FEATURE_TESTS') || str_contains($call['prompt'], 'IMPLEMENT_TASK')) {
+                $steps[] = $call['model'];
+            }
+        }
+
+        expect($steps)->toBe(['feature-model', 'implement-model']);
+    } finally {
+        factoryRemove($root);
+    }
+});
+
 function factoryRoot(): string
 {
     $root = sys_get_temp_dir().'/access-factory-'.bin2hex(random_bytes(4));
@@ -733,6 +786,7 @@ function factoryRoot(): string
     file_put_contents($root.'/.specify/.gitignore', "feature.json\n");
     mkdir($root.'/factory/prompts', 0777, true);
     mkdir($root.'/.cursor', 0777, true);
+    file_put_contents($root.'/factory/prompts/feature_tester.md', "FEATURE_TESTS\n");
     file_put_contents($root.'/factory/prompts/implementer.md', "IMPLEMENT_TASK\n");
     file_put_contents($root.'/factory/prompts/quality_reviewer.md', "QUALITY_REVIEW\n");
     file_put_contents($root.'/factory/prompts/functional_reviewer.md', "FUNCTIONAL_REVIEW\n");
@@ -1557,6 +1611,7 @@ function factoryWorkflow(string $root, AgentClient $agent, ?FeatureScaffolder $s
             'models' => [
                 'spec_author' => 'spec-model',
                 'spec_editor' => 'editor-model',
+                'feature_tester' => 'feature-model',
                 'implementer' => 'implement-model',
                 'reviewer' => 'review-model',
             ],
