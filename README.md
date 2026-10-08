@@ -46,18 +46,18 @@ make verify
 
 ## Factory
 
-The contract is [`factory/factory.yaml`](factory/factory.yaml). Prompts for the implementation loop are in [`factory/prompts/`](factory/prompts/). The orchestrator is `php factory/orchestrate.php`.
+The contract is [`factory/factory.yaml`](factory/factory.yaml). Prompts for the implementation loop are in [`factory/prompts/`](factory/prompts/). The orchestrator is the Composer package `access/factory`, installed from the sibling repository `../factory` and run as `vendor/bin/factory`.
 
 Run it with Node 22 on `PATH`, because each task runs `make verify`. `cursor-agent` must be logged in.
 
 ```bash
 nvm use
-php factory/orchestrate.php run -v -i specs/001.md
-php factory/orchestrate.php run --fast -v -i specs/spa-visual-style-kit.md
-php factory/orchestrate.php resume -v
+vendor/bin/factory run -v -i specs/001.md
+vendor/bin/factory run --fast -v -i specs/spa-visual-style-kit.md
+vendor/bin/factory resume -v
 ```
 
-A one-line description still works: `php factory/orchestrate.php run "..."`.
+A one-line description still works: `vendor/bin/factory run "..."`.
 
 `--fast` keeps the DevSpec path including **analyze**, but skips `make verify` and the quality/functional code reviewers after each implement wave. You review the code yourself. The mode is stored in `state.json`, so `resume` keeps it.
 
@@ -148,6 +148,6 @@ Models set in the contract:
 
 ### Later: run without the laptop
 
-Not built. The idea is to run `php factory/orchestrate.php` on a Cursor cloud machine, so a closed laptop does not stop the happy path. The cloud agent is only the machine. The orchestrator still calls `cursor-agent`, worktrees, and `make verify`.
+Not built. The idea is to run `vendor/bin/factory` on a Cursor cloud machine, so a closed laptop does not stop the happy path. The cloud agent is only the machine. The orchestrator still calls `cursor-agent`, worktrees, and `make verify`.
 
 A remote run still stops for a person on `unresolved_questions`, `analyze_failure`, and `retries_exhausted`. Those stops are useful only if the machine leaves a durable handoff before it disappears: the feature branch pushed, `state.json` saved, and either `questions.md` or the reviewer feedback available to the next session. Today that state stays on the machine that ran the process (`state.json`, an uncommitted `questions.md`, `factory/draft`, and gitignored `factory/runs/`). A new cloud session cannot `resume` without it.

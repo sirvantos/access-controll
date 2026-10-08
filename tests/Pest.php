@@ -6,7 +6,6 @@ use App\Support\CompanyContextStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-require_once __DIR__.'/../factory/bootstrap.php';
 require_once __DIR__.'/Support/Identity/helpers.php';
 require_once __DIR__.'/Support/Companies/helpers.php';
 require_once __DIR__.'/Support/Tenancy/helpers.php';

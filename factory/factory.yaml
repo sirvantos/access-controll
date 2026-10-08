@@ -1,4 +1,4 @@
-# Factory contract. The orchestrator parses this file.
+# Factory contract. The access/factory package (vendor/bin/factory) parses this file.
 # reviewer is a different model family from the coding implementer.
 # Each implement wave is two agents: feature tests, then production code and unit tests.
 
