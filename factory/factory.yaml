@@ -27,7 +27,7 @@ models:
   spec_author: claude-opus-5-5-medium
   spec_editor: cursor-grok-4.6-high
   feature_tester: cursor-grok-4.6-medium
-  implementer: claude-haiku-5-5
+  implementer: gpt-6.1-luna-high
   reviewer: grok-4.7-medium
 
 # The human passes a feature description. specify is the first factory step.

@@ -141,7 +141,7 @@ Models set in the contract:
 - **spec_author** — `claude-opus-5-5-medium`, used for specify and clarify. Those two steps share one chat.
 - **spec_editor** — `cursor-grok-4.6-high`, used for plan, tasks, and analyze repairs. Those steps share a second chat. A chat stays on one model, so plan does not resume the Opus chat.
 - **feature_tester** — `cursor-grok-4.6-medium`, writes the feature tests for the current implement wave
-- **implementer** — `claude-haiku-5-5`, writes production code and unit tests after those feature tests
+- **implementer** — `gpt-6.1-luna-high`, writes production code and unit tests after those feature tests
 - **reviewer** — `grok-4.7-medium`, used for analyze, both reviews, and converge
 
 `reviewer` is a different model family from the coding implementer.
